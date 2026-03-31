@@ -1,0 +1,10 @@
+{
+  "functions": {
+    "api/generate-story.js": {
+      "maxDuration": 30
+    },
+    "api/text-to-speech-all.js": {
+      "maxDuration": 60
+    }
+  }
+}

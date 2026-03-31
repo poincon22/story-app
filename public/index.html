@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Histoires Magiques</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 24px;
+      padding: 40px;
+      max-width: 600px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 2rem;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #888;
+      margin-bottom: 30px;
+      font-size: 1rem;
+    }
+
+    .input-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 8px;
+      font-size: 0.95rem;
+    }
+
+    textarea {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 14px;
+      font-size: 1rem;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 100px;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+
+    textarea:focus {
+      border-color: #764ba2;
+    }
+
+    textarea::placeholder {
+      color: #bbb;
+    }
+
+    .voice-picker {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .voice-btn {
+      padding: 8px 14px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      background: white;
+      color: #555;
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      width: auto;
+    }
+
+    .voice-btn:hover {
+      border-color: #764ba2;
+      color: #764ba2;
+    }
+
+    .voice-btn.active {
+      border-color: #764ba2;
+      background: #764ba2;
+      color: white;
+    }
+
+    button {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 14px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s, opacity 0.2s;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+    }
+
+    button:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .status {
+      text-align: center;
+      margin-top: 16px;
+      color: #764ba2;
+      font-weight: 500;
+      min-height: 24px;
+    }
+
+    .story-box {
+      margin-top: 24px;
+      padding: 20px;
+      background: #f8f6ff;
+      border-radius: 16px;
+      border: 2px solid #e8e0f5;
+      display: none;
+    }
+
+    .story-box.visible {
+      display: block;
+    }
+
+    .story-label {
+      font-weight: 600;
+      color: #764ba2;
+      margin-bottom: 10px;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .story-text {
+      line-height: 1.7;
+      color: #444;
+      font-size: 1.05rem;
+      white-space: pre-wrap;
+    }
+
+    .audio-section {
+      margin-top: 20px;
+      display: none;
+    }
+
+    .audio-section.visible {
+      display: block;
+    }
+
+    audio {
+      width: 100%;
+      border-radius: 12px;
+      margin-top: 8px;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .error {
+      color: #e74c3c;
+      text-align: center;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Histoires Magiques</h1>
+    <p class="subtitle">Generateur d'histoires audio pour enfants</p>
+
+    <div class="input-group">
+      <label for="context">De quoi parle l'histoire ?</label>
+      <textarea id="context" placeholder="Ex : un petit chat roux qui veut devenir astronaute et aller sur la lune..."></textarea>
+    </div>
+
+    <button id="generate-btn" onclick="generate()">Creer mon histoire</button>
+
+    <p class="status" id="status"></p>
+    <p class="error" id="error"></p>
+
+    <div class="story-box" id="story-box">
+      <div class="story-label">L'histoire</div>
+      <div class="story-text" id="story-text"></div>
+    </div>
+
+    <div class="audio-section" id="audio-section">
+      <div class="story-label">Ecouter l'histoire</div>
+      <div class="voice-picker" id="voice-picker"></div>
+      <audio id="audio-player" controls></audio>
+    </div>
+  </div>
+
+  <script>
+    const btn = document.getElementById('generate-btn');
+    const statusEl = document.getElementById('status');
+    const errorEl = document.getElementById('error');
+    const storyBox = document.getElementById('story-box');
+    const storyTextEl = document.getElementById('story-text');
+    const audioSection = document.getElementById('audio-section');
+    const audioPlayer = document.getElementById('audio-player');
+    const voicePicker = document.getElementById('voice-picker');
+    const contextEl = document.getElementById('context');
+
+    // Loaded from server
+    let voiceNames = [];
+    let audioUrls = {};
+    let activeVoice = '';
+
+    function buildVoicePicker() {
+      voicePicker.innerHTML = '';
+      for (const name of voiceNames) {
+        const b = document.createElement('button');
+        b.className = 'voice-btn' + (name === activeVoice ? ' active' : '');
+        b.textContent = name;
+        b.onclick = () => switchVoice(name);
+        voicePicker.appendChild(b);
+      }
+    }
+
+    function switchVoice(voice) {
+      if (!audioUrls[voice]) return;
+      const wasPlaying = !audioPlayer.paused;
+      const currentTime = audioPlayer.currentTime;
+      activeVoice = voice;
+      audioPlayer.src = audioUrls[voice];
+      audioPlayer.currentTime = currentTime;
+      if (wasPlaying) audioPlayer.play();
+      buildVoicePicker();
+    }
+
+    async function generate() {
+      const context = contextEl.value.trim();
+      if (!context) return;
+
+      btn.disabled = true;
+      errorEl.textContent = '';
+      audioUrls = {};
+      storyBox.classList.remove('visible');
+      audioSection.classList.remove('visible');
+      statusEl.innerHTML = '<span class="spinner"></span> Creation de l\'histoire...';
+
+      try {
+        const storyRes = await fetch('/api/generate-story', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ context }),
+        });
+
+        if (!storyRes.ok) throw new Error('Erreur lors de la generation');
+        const { story } = await storyRes.json();
+
+        storyTextEl.textContent = story;
+        storyBox.classList.add('visible');
+
+        const count = voiceNames.length || '...';
+        statusEl.innerHTML = `<span class="spinner"></span> Generation des voix (${count} variantes)...`;
+
+        const audioRes = await fetch('/api/text-to-speech-all', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: story }),
+        });
+
+        if (!audioRes.ok) throw new Error('Erreur lors de la synthese vocale');
+
+        const { audioMap } = await audioRes.json();
+        voiceNames = Object.keys(audioMap);
+        for (const [voice, base64] of Object.entries(audioMap)) {
+          const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+          const blob = new Blob([bytes], { type: 'audio/mpeg' });
+          audioUrls[voice] = URL.createObjectURL(blob);
+        }
+
+        activeVoice = voiceNames[0];
+        audioPlayer.src = audioUrls[activeVoice];
+        buildVoicePicker();
+        audioSection.classList.add('visible');
+        statusEl.textContent = 'Histoire prete ! Cliquez sur une voix pour changer.';
+      } catch (err) {
+        errorEl.textContent = err.message;
+        statusEl.textContent = '';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    // Load available voices on page load
+    fetch('/api/voices').then(r => r.json()).then(({ voices }) => {
+      voiceNames = voices.map(v => v.name);
+    });
+
+    contextEl.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) generate();
+    });
+  </script>
+</body>
+</html>
