@@ -649,6 +649,28 @@
       margin-top: 20px;
     }
 
+    /* Toast notification */
+    .toast {
+      position: fixed;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-100px);
+      background: #27ae60;
+      color: white;
+      padding: 14px 28px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+      z-index: 200;
+      transition: transform 0.4s ease;
+      pointer-events: none;
+    }
+
+    .toast.visible {
+      transform: translateX(-50%) translateY(0);
+    }
+
     /* Mobile */
     @media (max-width: 480px) {
     @media (max-width: 480px) {
@@ -663,6 +685,9 @@
   </style>
 </head>
 <body>
+  <!-- Toast notification -->
+  <div class="toast" id="toast"></div>
+
   <!-- Auth Modal -->
   <div class="modal-overlay" id="auth-modal">
     <div class="modal">
@@ -812,6 +837,14 @@
   </div>
 
   <script>
+    // --- Toast ---
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('visible');
+      setTimeout(() => toast.classList.remove('visible'), 3000);
+    }
+
     // --- Supabase init ---
     let sb = null; // Supabase client (avoid name collision with window.supabase)
     let currentUser = null;
@@ -913,13 +946,10 @@
 
         if (result.error) throw result.error;
 
-        if (authMode === 'signup' && result.data.user && !result.data.session) {
-          authError.style.color = '#27ae60';
-          authError.textContent = 'Compte cree ! Verifiez votre email pour confirmer.';
-          return;
-        }
-
         closeAuthModal();
+        if (authMode === 'signup') {
+          showToast('Compte cree avec succes ! Bienvenue !');
+        }
       } catch (err) {
         authError.style.color = '#e74c3c';
         const messages = {
