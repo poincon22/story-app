@@ -1338,6 +1338,7 @@
     let lastGeneratedComptineUrl = null;
 
     async function saveToLibrary() {
+      alert('saveToLibrary called - mode=' + lastGeneratedMode + ' audioUrls=' + Object.keys(audioUrls).length);
       if (!currentUser || !sb) {
         pendingSaveAfterLogin = true;
         openAuthModal('login');
