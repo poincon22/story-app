@@ -107,7 +107,15 @@ app.post("/api/transcribe", express.raw({ type: "*/*", limit: "25mb" }), async (
       language: "fr",
     });
 
-    res.json({ text: transcription.text });
+    // Whisper hallucinate quand l'audio est vide/silencieux
+    const hallucinations = [
+      "sous-titres", "amara.org", "sous-titrage", "soustitres",
+      "transcrit par", "traduit par", "merci d'avoir regardé",
+    ];
+    const lower = transcription.text.toLowerCase();
+    const isHallucination = hallucinations.some((h) => lower.includes(h));
+
+    res.json({ text: isHallucination ? "" : transcription.text });
   } catch (err) {
     console.error("Transcription error:", err.message);
     res.status(500).json({ error: "Erreur lors de la transcription" });
