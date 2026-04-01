@@ -303,7 +303,15 @@
     </div>
 
     <div class="input-group">
-      <label for="duration">Duree de l'histoire</label>
+      <label for="mode">Type</label>
+      <select id="mode">
+        <option value="story" selected>Histoire racontee</option>
+        <option value="comptine">Comptine chantee</option>
+      </select>
+    </div>
+
+    <div class="input-group">
+      <label for="duration">Duree</label>
       <select id="duration">
         <option value="30">30''</option>
         <option value="60" selected>1'</option>
@@ -505,6 +513,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
           context,
+          mode: document.getElementById('mode').value,
           duration: parseInt(document.getElementById('duration').value),
           age: parseInt(document.getElementById('age').value),
           language: document.getElementById('language').value,
