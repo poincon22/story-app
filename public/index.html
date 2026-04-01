@@ -137,37 +137,6 @@
       border-color: #764ba2;
     }
 
-    .voice-picker {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-
-    .voice-btn {
-      padding: 8px 14px;
-      border: 2px solid #e0e0e0;
-      border-radius: 10px;
-      background: white;
-      color: #555;
-      font-size: 0.85rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.15s;
-      width: auto;
-    }
-
-    .voice-btn:hover {
-      border-color: #764ba2;
-      color: #764ba2;
-    }
-
-    .voice-btn.active {
-      border-color: #764ba2;
-      background: #764ba2;
-      color: white;
-    }
-
     button.primary {
       width: 100%;
       padding: 16px;
@@ -898,7 +867,6 @@
       .subtitle { font-size: 0.85rem; margin-bottom: 18px; }
       textarea { min-height: 80px; font-size: 0.95rem; }
       button.primary { padding: 14px; font-size: 1rem; }
-      .voice-btn { padding: 7px 11px; font-size: 0.8rem; }
       .subscription-cards { flex-direction: column; }
     }
   </style>
@@ -1018,7 +986,6 @@
 
     <div class="audio-section" id="audio-section">
       <div class="story-label">Ecouter l'histoire</div>
-      <div class="voice-picker" id="voice-picker"></div>
       <audio id="audio-player" controls></audio>
       <button class="toggle-text-btn" id="toggle-text-btn" onclick="toggleStoryText()">Voir le texte</button>
       <div class="story-box" id="story-box">
@@ -1600,7 +1567,7 @@
         pickerEl.innerHTML = '';
         toggleBtn.style.display = 'none';
       } else if (data.story_text) {
-        // Story: regenerate TTS
+        // Story: regenerate TTS with Nova
         textEl.textContent = data.story_text;
         toggleBtn.style.display = 'block';
         pickerEl.innerHTML = '<span class="spinner"></span> Generation audio...';
@@ -1614,38 +1581,11 @@
           });
 
           if (!audioRes.ok) throw new Error('TTS failed');
-          const { audioMap } = await audioRes.json();
-
-          const names = Object.keys(audioMap);
-          const urls = {};
-          for (const [voice, base64] of Object.entries(audioMap)) {
-            const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-            const blob = new Blob([bytes], { type: 'audio/mpeg' });
-            urls[voice] = URL.createObjectURL(blob);
-          }
-
-          let libActiveVoice = names[0];
-          audioEl.src = urls[libActiveVoice];
-
-          function buildLibPicker() {
-            pickerEl.innerHTML = '';
-            for (const name of names) {
-              const b = document.createElement('button');
-              b.className = 'voice-btn' + (name === libActiveVoice ? ' active' : '');
-              b.textContent = name;
-              b.onclick = () => {
-                const wasPlaying = !audioEl.paused;
-                const t = audioEl.currentTime;
-                libActiveVoice = name;
-                audioEl.src = urls[name];
-                audioEl.currentTime = t;
-                if (wasPlaying) audioEl.play();
-                buildLibPicker();
-              };
-              pickerEl.appendChild(b);
-            }
-          }
-          buildLibPicker();
+          const { audio } = await audioRes.json();
+          const bytes = Uint8Array.from(atob(audio), c => c.charCodeAt(0));
+          const blob = new Blob([bytes], { type: 'audio/mpeg' });
+          audioEl.src = URL.createObjectURL(blob);
+          pickerEl.innerHTML = '';
         } catch (e) {
           pickerEl.innerHTML = '<span style="color:#e74c3c;font-size:0.85rem">Erreur audio</span>';
         }
@@ -1689,15 +1629,10 @@
     const storyTextEl = document.getElementById('story-text');
     const audioSection = document.getElementById('audio-section');
     const audioPlayer = document.getElementById('audio-player');
-    const voicePicker = document.getElementById('voice-picker');
     const contextEl = document.getElementById('context');
     const micBtn = document.getElementById('mic-btn');
     const micIcon = document.getElementById('mic-icon');
     const stopIcon = document.getElementById('stop-icon');
-
-    let voiceNames = [];
-    let audioUrls = {};
-    let activeVoice = '';
 
     // --- Recording ---
     let mediaRecorder = null;
@@ -1784,29 +1719,6 @@
       }
     }
 
-    // --- Voice picker ---
-    function buildVoicePicker() {
-      voicePicker.innerHTML = '';
-      for (const name of voiceNames) {
-        const b = document.createElement('button');
-        b.className = 'voice-btn' + (name === activeVoice ? ' active' : '');
-        b.textContent = name;
-        b.onclick = () => switchVoice(name);
-        voicePicker.appendChild(b);
-      }
-    }
-
-    function switchVoice(voice) {
-      if (!audioUrls[voice]) return;
-      const wasPlaying = !audioPlayer.paused;
-      const currentTime = audioPlayer.currentTime;
-      activeVoice = voice;
-      audioPlayer.src = audioUrls[voice];
-      audioPlayer.currentTime = currentTime;
-      if (wasPlaying) audioPlayer.play();
-      buildVoicePicker();
-    }
-
     // --- Story generation ---
     async function generate() {
       const context = contextEl.value.trim();
@@ -1817,7 +1729,6 @@
 
       btn.disabled = true;
       errorEl.textContent = '';
-      audioUrls = {};
       storyBox.classList.remove('visible');
       audioSection.classList.remove('visible');
 
@@ -1899,8 +1810,7 @@
           storyBox.classList.remove('visible');
           document.getElementById('toggle-text-btn').textContent = 'Voir le texte';
 
-          const count = voiceNames.length || '...';
-          statusEl.innerHTML = `<span class="spinner"></span> Generation des voix (${count} variantes)...`;
+          statusEl.innerHTML = '<span class="spinner"></span> Generation audio...';
 
           const audioRes = await fetch('/api/text-to-speech-all', {
             method: 'POST',
@@ -1910,24 +1820,18 @@
 
           if (!audioRes.ok) throw new Error('Erreur lors de la synthese vocale');
 
-          const { audioMap } = await audioRes.json();
-          voiceNames = Object.keys(audioMap);
-          for (const [voice, base64] of Object.entries(audioMap)) {
-            const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-            const blob = new Blob([bytes], { type: 'audio/mpeg' });
-            audioUrls[voice] = URL.createObjectURL(blob);
-          }
+          const { audio } = await audioRes.json();
+          const bytes = Uint8Array.from(atob(audio), c => c.charCodeAt(0));
+          const blob = new Blob([bytes], { type: 'audio/mpeg' });
+          audioPlayer.src = URL.createObjectURL(blob);
 
-          activeVoice = voiceNames[0];
-          audioPlayer.src = audioUrls[activeVoice];
-          buildVoicePicker();
           document.getElementById('toggle-text-btn').style.display = 'block';
           document.getElementById('refine-btn').style.display = 'inline-block';
           document.getElementById('refine-section').classList.remove('visible');
           document.getElementById('refine-btn').textContent = 'Ameliorer l\'histoire';
           document.getElementById('save-btn').style.display = 'inline-block';
           audioSection.classList.add('visible');
-          statusEl.textContent = 'Histoire prete ! Cliquez sur une voix pour changer.';
+          statusEl.textContent = 'Histoire prete !';
         }
       } catch (err) {
         errorEl.textContent = err.message;
@@ -1937,10 +1841,6 @@
       }
     }
 
-    // Load available voices on page load
-    fetch('/api/voices').then(r => r.json()).then(({ voices }) => {
-      voiceNames = voices.map(v => v.name);
-    });
 
     function toggleStoryText() {
       const toggleBtn = document.getElementById('toggle-text-btn');
@@ -1995,9 +1895,8 @@
         currentStory = story;
         storyTextEl.textContent = story;
 
-        // Regenerate all voices with the new story
-        const count = voiceNames.length || '...';
-        statusEl.innerHTML = `<span class="spinner"></span> Regeneration des voix (${count} variantes)...`;
+        // Regenerate audio with the new story
+        statusEl.innerHTML = '<span class="spinner"></span> Regeneration audio...';
 
         const audioRes = await fetch('/api/text-to-speech-all', {
           method: 'POST',
@@ -2007,25 +1906,17 @@
 
         if (!audioRes.ok) throw new Error('Erreur lors de la synthese vocale');
 
-        const { audioMap } = await audioRes.json();
-        voiceNames = Object.keys(audioMap);
-        audioUrls = {};
-        for (const [voice, base64] of Object.entries(audioMap)) {
-          const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-          const blob = new Blob([bytes], { type: 'audio/mpeg' });
-          audioUrls[voice] = URL.createObjectURL(blob);
-        }
-
-        activeVoice = voiceNames[0];
-        audioPlayer.src = audioUrls[activeVoice];
-        buildVoicePicker();
+        const { audio } = await audioRes.json();
+        const bytes = Uint8Array.from(atob(audio), c => c.charCodeAt(0));
+        const blob = new Blob([bytes], { type: 'audio/mpeg' });
+        audioPlayer.src = URL.createObjectURL(blob);
 
         // Reset refine UI
         document.getElementById('refine-instructions').value = '';
         document.getElementById('refine-section').classList.remove('visible');
         refineBtn.textContent = 'Ameliorer l\'histoire';
 
-        statusEl.textContent = 'Histoire modifiee ! Cliquez sur une voix pour changer.';
+        statusEl.textContent = 'Histoire modifiee !';
       } catch (err) {
         errorEl.textContent = err.message;
         statusEl.textContent = '';
