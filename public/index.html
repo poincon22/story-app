@@ -1379,25 +1379,28 @@
         if (error) throw error;
         const storyId = inserted.id;
 
-        // Save audio as base64 directly in database
-        if (lastGeneratedMode === 'story' && Object.keys(audioUrls).length > 0) {
+        // Save active voice audio as base64 in database
+        if (lastGeneratedMode === 'story' && activeVoice && audioUrls[activeVoice]) {
           saveBtn.textContent = 'Sauvegarde audio...';
-          const audioBase64 = {};
-
-          for (const [voice, blobUrl] of Object.entries(audioUrls)) {
-            try {
-              const response = await fetch(blobUrl);
-              const blob = await response.blob();
-              const buffer = await blob.arrayBuffer();
-              const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-              audioBase64[voice] = base64;
-            } catch (e) {
-              console.warn('Failed to convert', voice, e);
+          try {
+            const response = await fetch(audioUrls[activeVoice]);
+            const blob = await response.blob();
+            const buffer = await blob.arrayBuffer();
+            const bytes = new Uint8Array(buffer);
+            // Convert in chunks to avoid call stack overflow
+            let base64 = '';
+            const chunkSize = 8192;
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+              base64 += String.fromCharCode(...bytes.slice(i, i + chunkSize));
             }
-          }
+            base64 = btoa(base64);
 
-          if (Object.keys(audioBase64).length > 0) {
-            await sb.from('stories').update({ audio_data: audioBase64 }).eq('id', storyId);
+            const audioData = {};
+            audioData[activeVoice] = base64;
+
+            await sb.from('stories').update({ audio_data: audioData }).eq('id', storyId);
+          } catch (e) {
+            console.warn('Failed to save audio:', e);
           }
         }
 
@@ -1565,7 +1568,7 @@
       try {
         const { data, error } = await sb
           .from('stories')
-          .select('*')
+          .select('id, title, context, mode, language, age, duration, created_at')
           .eq('user_id', currentUser.id)
           .order('created_at', { ascending: false });
 
@@ -1601,8 +1604,11 @@
     }
 
     async function playFromLibrary(id) {
-      const { data, error } = await sb.from('stories').select('*').eq('id', id).single();
-      if (error || !data) return;
+      const { data, error } = await sb.from('stories').select('id, title, context, story_text, mode, language, age, duration, audio_url, audio_data').eq('id', id).single();
+      if (error || !data) {
+        console.error('playFromLibrary error:', error);
+        return;
+      }
 
       const player = document.getElementById('library-player');
       const audioEl = document.getElementById('library-audio-player');
