@@ -143,16 +143,19 @@ const SUNO_API_KEY = process.env.SUNO_API_KEY;
 const SUNO_BASE_URL = "https://api.sunoapi.org";
 
 app.post("/api/generate-song", async (req, res) => {
-  const { context, language = "fr", age = 4 } = req.body;
+  const { context, language = "fr", age = 4, duration = 60 } = req.body;
   if (!context) return res.status(400).json({ error: "Contexte manquant" });
 
+  const durationLabel = duration < 60 ? `${duration} secondes` : `${Math.round(duration / 60)} minute${duration >= 120 ? 's' : ''}`;
+  const durationLabelEn = duration < 60 ? `${duration} seconds` : `${Math.round(duration / 60)} minute${duration >= 120 ? 's' : ''}`;
+
   const prompt = language === "fr"
-    ? `Une comptine joyeuse pour enfant de ${age} ans sur le theme : ${context}`
-    : `A cheerful nursery rhyme for a ${age}-year-old child about: ${context}`;
+    ? `Une comptine chantee joyeuse d'environ ${durationLabel} pour un enfant de ${age} ans. Le theme est : ${context}. Vocabulaire simple et adapte a un enfant de ${age} ans, melodie entrainante et facile a retenir, paroles en francais.`
+    : `A cheerful sung nursery rhyme of about ${durationLabelEn} for a ${age}-year-old child. The theme is: ${context}. Simple vocabulary appropriate for a ${age}-year-old, catchy and easy to remember melody, lyrics in English.`;
 
   const style = language === "fr"
-    ? "comptine pour enfants, joyeux, acoustique, voix douce feminine, francais"
-    : "children nursery rhyme, cheerful, acoustic, soft female voice, english";
+    ? "comptine pour enfants, joyeux, acoustique, voix douce, francais, melodie simple"
+    : "children nursery rhyme, cheerful, acoustic, soft voice, english, simple melody";
 
   try {
     const genRes = await fetch(`${SUNO_BASE_URL}/api/v1/generate`, {

@@ -520,7 +520,12 @@
           const songRes = await fetch('/api/generate-song', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ context, language, age: parseInt(document.getElementById('age').value) }),
+            body: JSON.stringify({
+              context,
+              language,
+              age: parseInt(document.getElementById('age').value),
+              duration: parseInt(document.getElementById('duration').value),
+            }),
           });
 
           if (!songRes.ok) throw new Error('Erreur lors du lancement de la chanson');
