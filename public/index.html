@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Histoires Magiques</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -348,8 +349,308 @@
       margin-top: 12px;
     }
 
+    /* Auth bar */
+    .auth-bar {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .auth-bar .user-email {
+      color: #666;
+      font-size: 0.85rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 200px;
+    }
+
+    .auth-bar button {
+      padding: 6px 14px;
+      border: 2px solid #764ba2;
+      border-radius: 8px;
+      background: white;
+      color: #764ba2;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .auth-bar button:hover {
+      background: #764ba2;
+      color: white;
+    }
+
+    .auth-bar button.library-btn {
+      border-color: #667eea;
+      color: #667eea;
+    }
+
+    .auth-bar button.library-btn:hover {
+      background: #667eea;
+      color: white;
+    }
+
+    /* Auth modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .modal-overlay.visible {
+      display: flex;
+    }
+
+    .modal {
+      background: white;
+      border-radius: 20px;
+      padding: 32px;
+      max-width: 400px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+
+    .modal h2 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 20px;
+      font-size: 1.3rem;
+    }
+
+    .modal .input-group {
+      margin-bottom: 14px;
+    }
+
+    .modal input[type="email"],
+    .modal input[type="password"] {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .modal input:focus {
+      border-color: #764ba2;
+    }
+
+    .modal .auth-error {
+      color: #e74c3c;
+      font-size: 0.85rem;
+      text-align: center;
+      margin-bottom: 10px;
+      min-height: 20px;
+    }
+
+    .modal .switch-link {
+      text-align: center;
+      margin-top: 14px;
+      font-size: 0.85rem;
+      color: #888;
+    }
+
+    .modal .switch-link a {
+      color: #764ba2;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    .modal .close-modal {
+      position: absolute;
+      top: 12px;
+      right: 16px;
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      color: #999;
+      cursor: pointer;
+    }
+
+    .modal-inner {
+      position: relative;
+    }
+
+    /* Save button */
+    .save-btn {
+      margin-top: 12px;
+      padding: 10px 20px;
+      border: 2px solid #27ae60;
+      border-radius: 10px;
+      background: white;
+      color: #27ae60;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      width: auto;
+    }
+
+    .save-btn:hover {
+      background: #27ae60;
+      color: white;
+    }
+
+    .save-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .save-btn.saved {
+      background: #27ae60;
+      color: white;
+      border-color: #27ae60;
+    }
+
+    /* Library view */
+    .library-view {
+      display: none;
+    }
+
+    .library-view.visible {
+      display: block;
+    }
+
+    .library-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .library-header h2 {
+      color: #333;
+      font-size: 1.3rem;
+    }
+
+    .library-header button {
+      padding: 8px 16px;
+      border: 2px solid #764ba2;
+      border-radius: 10px;
+      background: white;
+      color: #764ba2;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .library-header button:hover {
+      background: #764ba2;
+      color: white;
+    }
+
+    .library-empty {
+      text-align: center;
+      color: #999;
+      padding: 40px 0;
+      font-size: 0.95rem;
+    }
+
+    .library-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .library-item {
+      padding: 16px;
+      background: #f8f6ff;
+      border: 2px solid #e8e0f5;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .library-item:hover {
+      border-color: #764ba2;
+      transform: translateY(-1px);
+    }
+
+    .library-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 6px;
+    }
+
+    .library-item-title {
+      font-weight: 600;
+      color: #333;
+      font-size: 1rem;
+      flex: 1;
+    }
+
+    .library-item-meta {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .library-item-badge {
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .library-item-badge.story {
+      background: #e8e0f5;
+      color: #764ba2;
+    }
+
+    .library-item-badge.comptine {
+      background: #e0f0e8;
+      color: #27ae60;
+    }
+
+    .library-item-date {
+      color: #aaa;
+      font-size: 0.75rem;
+    }
+
+    .library-item-context {
+      color: #777;
+      font-size: 0.85rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .library-item-delete {
+      background: none;
+      border: none;
+      color: #ccc;
+      font-size: 1.1rem;
+      cursor: pointer;
+      padding: 0 4px;
+      transition: color 0.15s;
+    }
+
+    .library-item-delete:hover {
+      color: #e74c3c;
+    }
+
+    .library-player {
+      margin-top: 20px;
+    }
 
     /* Mobile */
+    @media (max-width: 480px) {
     @media (max-width: 480px) {
       body { padding: 8px; align-items: flex-start; padding-top: 16px; }
       .container { padding: 20px; border-radius: 20px; }
@@ -362,7 +663,37 @@
   </style>
 </head>
 <body>
+  <!-- Auth Modal -->
+  <div class="modal-overlay" id="auth-modal">
+    <div class="modal">
+      <div class="modal-inner">
+        <button class="close-modal" onclick="closeAuthModal()">&times;</button>
+        <h2 id="auth-modal-title">Se connecter</h2>
+        <div class="input-group">
+          <label for="auth-email">Email</label>
+          <input type="email" id="auth-email" placeholder="votre@email.com">
+        </div>
+        <div class="input-group">
+          <label for="auth-password">Mot de passe</label>
+          <input type="password" id="auth-password" placeholder="Votre mot de passe">
+        </div>
+        <p class="auth-error" id="auth-error"></p>
+        <button class="primary" id="auth-submit-btn" onclick="submitAuth()">Se connecter</button>
+        <p class="switch-link" id="auth-switch">
+          Pas encore de compte ? <a onclick="switchAuthMode()">S'inscrire</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
   <div class="container">
+    <!-- Auth bar -->
+    <div class="auth-bar" id="auth-bar">
+      <button id="auth-login-btn" onclick="openAuthModal('login')">Se connecter</button>
+    </div>
+
+    <!-- Generator view -->
+    <div id="generator-view">
     <h1>Histoires Magiques</h1>
     <p class="subtitle">Generateur d'histoires audio pour enfants</p>
 
@@ -454,11 +785,363 @@
         </div>
         <button class="refine-submit" id="refine-submit" onclick="refineStory()">Appliquer les modifications</button>
       </div>
+      <button class="save-btn" id="save-btn" onclick="saveToLibrary()" style="display:none">Sauvegarder dans ma bibliotheque</button>
+    </div>
+    </div><!-- end generator-view -->
+
+    <!-- Library view -->
+    <div class="library-view" id="library-view">
+      <div class="library-header">
+        <h2>Ma bibliotheque</h2>
+        <button onclick="showGenerator()">Nouvelle histoire</button>
+      </div>
+      <div id="library-content">
+        <p class="library-empty">Chargement...</p>
+      </div>
+      <div class="library-player" id="library-player" style="display:none">
+        <div class="story-label" id="library-player-title"></div>
+        <div class="voice-picker" id="library-voice-picker"></div>
+        <audio id="library-audio-player" controls></audio>
+        <button class="toggle-text-btn" id="library-toggle-text" onclick="toggleLibraryText()">Voir le texte</button>
+        <div class="story-box" id="library-story-box">
+          <div class="story-text" id="library-story-text"></div>
+        </div>
+      </div>
     </div>
 
   </div>
 
   <script>
+    // --- Supabase init ---
+    let supabase = null;
+    let currentUser = null;
+
+    async function initSupabase() {
+      try {
+        const res = await fetch('/api/config');
+        const { supabaseUrl, supabaseAnonKey } = await res.json();
+        if (supabaseUrl && supabaseAnonKey) {
+          supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+          // Check existing session
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) setUser(session.user);
+          // Listen for auth changes
+          supabase.auth.onAuthStateChange((event, session) => {
+            if (session) setUser(session.user);
+            else setUser(null);
+          });
+        }
+      } catch (e) {
+        console.warn('Supabase not configured:', e.message);
+      }
+    }
+
+    function setUser(user) {
+      currentUser = user;
+      updateAuthBar();
+    }
+
+    function updateAuthBar() {
+      const bar = document.getElementById('auth-bar');
+      if (currentUser) {
+        bar.innerHTML = `
+          <button class="library-btn" onclick="showLibrary()">Ma bibliotheque</button>
+          <span class="user-email">${currentUser.email}</span>
+          <button onclick="logout()">Deconnexion</button>
+        `;
+        document.getElementById('save-btn').style.display = 'inline-block';
+      } else {
+        bar.innerHTML = `<button id="auth-login-btn" onclick="openAuthModal('login')">Se connecter</button>`;
+        document.getElementById('save-btn').style.display = 'none';
+      }
+    }
+
+    // --- Auth modal ---
+    let authMode = 'login'; // 'login' or 'signup'
+
+    function openAuthModal(mode) {
+      authMode = mode || 'login';
+      document.getElementById('auth-modal-title').textContent = authMode === 'login' ? 'Se connecter' : 'Creer un compte';
+      document.getElementById('auth-submit-btn').textContent = authMode === 'login' ? 'Se connecter' : 'S\'inscrire';
+      document.getElementById('auth-switch').innerHTML = authMode === 'login'
+        ? 'Pas encore de compte ? <a onclick="switchAuthMode()">S\'inscrire</a>'
+        : 'Deja un compte ? <a onclick="switchAuthMode()">Se connecter</a>';
+      document.getElementById('auth-error').textContent = '';
+      document.getElementById('auth-email').value = '';
+      document.getElementById('auth-password').value = '';
+      document.getElementById('auth-modal').classList.add('visible');
+    }
+
+    function closeAuthModal() {
+      document.getElementById('auth-modal').classList.remove('visible');
+    }
+
+    function switchAuthMode() {
+      openAuthModal(authMode === 'login' ? 'signup' : 'login');
+    }
+
+    async function submitAuth() {
+      const email = document.getElementById('auth-email').value.trim();
+      const password = document.getElementById('auth-password').value;
+      const authError = document.getElementById('auth-error');
+
+      if (!email || !password) {
+        authError.textContent = 'Veuillez remplir tous les champs';
+        return;
+      }
+      if (password.length < 6) {
+        authError.textContent = 'Le mot de passe doit faire au moins 6 caracteres';
+        return;
+      }
+
+      document.getElementById('auth-submit-btn').disabled = true;
+      authError.textContent = '';
+
+      try {
+        let result;
+        if (authMode === 'login') {
+          result = await supabase.auth.signInWithPassword({ email, password });
+        } else {
+          result = await supabase.auth.signUp({ email, password });
+        }
+
+        if (result.error) throw result.error;
+
+        if (authMode === 'signup' && result.data.user && !result.data.session) {
+          authError.style.color = '#27ae60';
+          authError.textContent = 'Compte cree ! Verifiez votre email pour confirmer.';
+          return;
+        }
+
+        closeAuthModal();
+      } catch (err) {
+        authError.style.color = '#e74c3c';
+        const messages = {
+          'Invalid login credentials': 'Email ou mot de passe incorrect',
+          'User already registered': 'Cet email est deja utilise',
+        };
+        authError.textContent = messages[err.message] || err.message;
+      } finally {
+        document.getElementById('auth-submit-btn').disabled = false;
+      }
+    }
+
+    async function logout() {
+      await supabase.auth.signOut();
+      setUser(null);
+      showGenerator();
+    }
+
+    // --- Library ---
+    let lastGeneratedMode = 'story';
+    let lastGeneratedComptineUrl = null;
+
+    async function saveToLibrary() {
+      if (!currentUser || !supabase) {
+        openAuthModal('login');
+        return;
+      }
+
+      const saveBtn = document.getElementById('save-btn');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Sauvegarde...';
+
+      try {
+        const context = document.getElementById('context').value.trim();
+        const mode = document.getElementById('mode').value;
+        const language = document.getElementById('language').value;
+        const age = parseInt(document.getElementById('age').value);
+        const duration = parseInt(document.getElementById('duration').value);
+
+        // Generate a short title from context
+        const title = context.length > 60 ? context.substring(0, 57) + '...' : context;
+
+        const record = {
+          user_id: currentUser.id,
+          title,
+          context,
+          story_text: currentStory || null,
+          mode: lastGeneratedMode,
+          language,
+          age,
+          duration,
+          audio_url: lastGeneratedComptineUrl || null,
+        };
+
+        const { error } = await supabase.from('stories').insert(record);
+        if (error) throw error;
+
+        saveBtn.textContent = 'Sauvegardee !';
+        saveBtn.classList.add('saved');
+        setTimeout(() => {
+          saveBtn.textContent = 'Sauvegarder dans ma bibliotheque';
+          saveBtn.classList.remove('saved');
+          saveBtn.disabled = false;
+        }, 2000);
+      } catch (err) {
+        console.error('Save error:', err);
+        errorEl.textContent = 'Erreur lors de la sauvegarde';
+        saveBtn.textContent = 'Sauvegarder dans ma bibliotheque';
+        saveBtn.disabled = false;
+      }
+    }
+
+    function showLibrary() {
+      document.getElementById('generator-view').style.display = 'none';
+      document.getElementById('library-view').classList.add('visible');
+      loadLibrary();
+    }
+
+    function showGenerator() {
+      document.getElementById('library-view').classList.remove('visible');
+      document.getElementById('generator-view').style.display = 'block';
+    }
+
+    async function loadLibrary() {
+      const content = document.getElementById('library-content');
+      content.innerHTML = '<p class="library-empty">Chargement...</p>';
+      document.getElementById('library-player').style.display = 'none';
+
+      try {
+        const { data, error } = await supabase
+          .from('stories')
+          .select('*')
+          .eq('user_id', currentUser.id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        if (!data || data.length === 0) {
+          content.innerHTML = '<p class="library-empty">Votre bibliotheque est vide.<br>Creez une histoire puis sauvegardez-la !</p>';
+          return;
+        }
+
+        content.innerHTML = '<div class="library-list">' + data.map(item => {
+          const date = new Date(item.created_at).toLocaleDateString('fr-FR', {
+            day: 'numeric', month: 'short', year: 'numeric'
+          });
+          const badgeClass = item.mode === 'comptine' ? 'comptine' : 'story';
+          const badgeText = item.mode === 'comptine' ? 'Comptine' : 'Histoire';
+          return `
+            <div class="library-item" onclick="playFromLibrary('${item.id}')">
+              <div class="library-item-header">
+                <div class="library-item-title">${escapeHtml(item.title)}</div>
+                <div class="library-item-meta">
+                  <span class="library-item-badge ${badgeClass}">${badgeText}</span>
+                  <button class="library-item-delete" onclick="event.stopPropagation(); deleteFromLibrary('${item.id}')" title="Supprimer">&times;</button>
+                </div>
+              </div>
+              <div class="library-item-date">${date} &middot; ${item.age} ans &middot; ${item.language === 'fr' ? 'FR' : 'EN'}</div>
+            </div>`;
+        }).join('') + '</div>';
+      } catch (err) {
+        console.error('Load library error:', err);
+        content.innerHTML = '<p class="library-empty">Erreur lors du chargement</p>';
+      }
+    }
+
+    async function playFromLibrary(id) {
+      const { data, error } = await supabase.from('stories').select('*').eq('id', id).single();
+      if (error || !data) return;
+
+      const player = document.getElementById('library-player');
+      const audioEl = document.getElementById('library-audio-player');
+      const titleEl = document.getElementById('library-player-title');
+      const textEl = document.getElementById('library-story-text');
+      const textBox = document.getElementById('library-story-box');
+      const toggleBtn = document.getElementById('library-toggle-text');
+      const pickerEl = document.getElementById('library-voice-picker');
+
+      titleEl.textContent = data.title;
+      player.style.display = 'block';
+      textBox.classList.remove('visible');
+      toggleBtn.textContent = 'Voir le texte';
+
+      if (data.mode === 'comptine' && data.audio_url) {
+        // Comptine: play saved URL directly
+        audioEl.src = data.audio_url;
+        pickerEl.innerHTML = '';
+        toggleBtn.style.display = 'none';
+      } else if (data.story_text) {
+        // Story: regenerate TTS
+        textEl.textContent = data.story_text;
+        toggleBtn.style.display = 'block';
+        pickerEl.innerHTML = '<span class="spinner"></span> Generation audio...';
+        audioEl.src = '';
+
+        try {
+          const audioRes = await fetch('/api/text-to-speech-all', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: data.story_text }),
+          });
+
+          if (!audioRes.ok) throw new Error('TTS failed');
+          const { audioMap } = await audioRes.json();
+
+          const names = Object.keys(audioMap);
+          const urls = {};
+          for (const [voice, base64] of Object.entries(audioMap)) {
+            const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+            const blob = new Blob([bytes], { type: 'audio/mpeg' });
+            urls[voice] = URL.createObjectURL(blob);
+          }
+
+          let libActiveVoice = names[0];
+          audioEl.src = urls[libActiveVoice];
+
+          function buildLibPicker() {
+            pickerEl.innerHTML = '';
+            for (const name of names) {
+              const b = document.createElement('button');
+              b.className = 'voice-btn' + (name === libActiveVoice ? ' active' : '');
+              b.textContent = name;
+              b.onclick = () => {
+                const wasPlaying = !audioEl.paused;
+                const t = audioEl.currentTime;
+                libActiveVoice = name;
+                audioEl.src = urls[name];
+                audioEl.currentTime = t;
+                if (wasPlaying) audioEl.play();
+                buildLibPicker();
+              };
+              pickerEl.appendChild(b);
+            }
+          }
+          buildLibPicker();
+        } catch (e) {
+          pickerEl.innerHTML = '<span style="color:#e74c3c;font-size:0.85rem">Erreur audio</span>';
+        }
+      }
+
+      player.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    async function deleteFromLibrary(id) {
+      if (!confirm('Supprimer cette histoire ?')) return;
+      await supabase.from('stories').delete().eq('id', id);
+      loadLibrary();
+    }
+
+    function toggleLibraryText() {
+      const box = document.getElementById('library-story-box');
+      const btn = document.getElementById('library-toggle-text');
+      if (box.classList.contains('visible')) {
+        box.classList.remove('visible');
+        btn.textContent = 'Voir le texte';
+      } else {
+        box.classList.add('visible');
+        btn.textContent = 'Masquer le texte';
+      }
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    // --- Views ---
     const btn = document.getElementById('generate-btn');
     const statusEl = document.getElementById('status');
     const errorEl = document.getElementById('error');
@@ -640,12 +1323,16 @@
 
           if (!audioUrl) throw new Error('Timeout: la chanson prend trop de temps');
 
+          lastGeneratedMode = 'comptine';
+          lastGeneratedComptineUrl = audioUrl;
+          currentStory = '';
           audioPlayer.src = audioUrl;
           voicePicker.innerHTML = '';
           document.getElementById('toggle-text-btn').style.display = 'none';
           document.getElementById('refine-btn').style.display = 'none';
           document.getElementById('refine-section').classList.remove('visible');
           storyBox.classList.remove('visible');
+          if (currentUser) document.getElementById('save-btn').style.display = 'inline-block';
           audioSection.classList.add('visible');
           statusEl.textContent = 'Comptine prete !';
         } else {
@@ -665,6 +1352,8 @@
           if (!storyRes.ok) throw new Error('Erreur lors de la generation');
           const { story } = await storyRes.json();
 
+          lastGeneratedMode = 'story';
+          lastGeneratedComptineUrl = null;
           currentStory = story;
           storyTextEl.textContent = story;
           storyBox.classList.remove('visible');
@@ -813,9 +1502,19 @@
     const modeEl = document.getElementById('mode');
     const durationGroup = document.getElementById('duration-group');
     modeEl.addEventListener('change', () => {
-      const mode = modeEl.value;
       durationGroup.style.display = modeEl.value === 'comptine' ? 'none' : 'block';
     });
+
+    // Enter key in auth modal
+    document.getElementById('auth-password').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submitAuth();
+    });
+    document.getElementById('auth-email').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('auth-password').focus();
+    });
+
+    // Init Supabase on load
+    initSupabase();
   </script>
 </body>
 </html>

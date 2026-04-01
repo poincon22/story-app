@@ -21,6 +21,14 @@ const VOICES = [
   { id: "onyx", name: "Onyx" },
 ];
 
+// Public config (Supabase keys are safe to expose client-side)
+app.get("/api/config", (req, res) => {
+  res.json({
+    supabaseUrl: process.env.SUPABASE_URL || "",
+    supabaseAnonKey: process.env.SUPABASE_ANON_KEY || "",
+  });
+});
+
 // List available voices
 app.get("/api/voices", (req, res) => {
   res.json({ voices: VOICES });
