@@ -310,7 +310,7 @@
       </select>
     </div>
 
-    <div class="input-group">
+    <div class="input-group" id="duration-group">
       <label for="duration">Duree</label>
       <select id="duration">
         <option value="30">30''</option>
@@ -524,7 +524,6 @@
               context,
               language,
               age: parseInt(document.getElementById('age').value),
-              duration: parseInt(document.getElementById('duration').value),
             }),
           });
 
@@ -616,6 +615,13 @@
 
     contextEl.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) generate();
+    });
+
+    // Show/hide duration based on mode
+    const modeEl = document.getElementById('mode');
+    const durationGroup = document.getElementById('duration-group');
+    modeEl.addEventListener('change', () => {
+      durationGroup.style.display = modeEl.value === 'comptine' ? 'none' : 'block';
     });
   </script>
 </body>
