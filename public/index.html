@@ -1127,7 +1127,6 @@
 
     // --- Supabase + Stripe config ---
     let sb = null;
-    let sbUrl = ''; // Supabase URL for Storage REST API
     let currentUser = null;
     let stripePriceMonthly = '';
     let stripePriceYearly = '';
@@ -1149,7 +1148,6 @@
           console.warn('Supabase SDK not loaded');
           return;
         }
-        sbUrl = supabaseUrl;
         sb = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
         // Check existing session
         const { data: { session } } = await sb.auth.getSession();
@@ -1376,44 +1374,8 @@
           audio_url: lastGeneratedComptineUrl || null,
         };
 
-        // Insert story and get back the ID
-        const { data: inserted, error } = await sb.from('stories').insert(record).select('id').single();
+        const { error } = await sb.from('stories').insert(record);
         if (error) throw error;
-        const storyId = inserted.id;
-
-        // Upload active voice audio to Supabase Storage
-        if (lastGeneratedMode === 'story' && activeVoice && audioUrls[activeVoice]) {
-          saveBtn.textContent = 'Sauvegarde audio...';
-          try {
-            const response = await fetch(audioUrls[activeVoice]);
-            const blob = await response.blob();
-            const filePath = `${currentUser.id}/${storyId}/${activeVoice}.mp3`;
-
-            // Use REST API directly instead of SDK (SDK hangs)
-            const { data: sessionData } = await sb.auth.getSession();
-            const token = sessionData.session.access_token;
-
-            const uploadRes = await fetch(`${sbUrl}/storage/v1/object/story-audio/${filePath}`, {
-              method: 'POST',
-              headers: {
-                'Authorization': 'Bearer ' + token,
-                'Content-Type': 'audio/mpeg',
-                'x-upsert': 'true',
-              },
-              body: blob,
-            });
-
-            if (uploadRes.ok) {
-              const audioPaths = {};
-              audioPaths[activeVoice] = filePath;
-              await sb.from('stories').update({ audio_paths: audioPaths }).eq('id', storyId);
-            } else {
-              console.warn('Upload failed:', uploadRes.status, await uploadRes.text());
-            }
-          } catch (e) {
-            console.warn('Failed to save audio:', e);
-          }
-        }
 
         saveBtn.textContent = 'Sauvegardee !';
         saveBtn.classList.add('saved');
@@ -1616,7 +1578,7 @@
 
     async function playFromLibrary(id) {
       try {
-        const { data, error } = await sb.from('stories').select('id, title, context, story_text, mode, language, age, duration, audio_url, audio_paths').eq('id', id).single();
+        const { data, error } = await sb.from('stories').select('id, title, context, story_text, mode, language, age, duration, audio_url').eq('id', id).single();
         if (error || !data) return;
 
       const player = document.getElementById('library-player');
@@ -1637,43 +1599,8 @@
         audioEl.src = data.audio_url;
         pickerEl.innerHTML = '';
         toggleBtn.style.display = 'none';
-      } else if (data.story_text && data.audio_paths && Object.keys(data.audio_paths).length > 0) {
-        // Story with saved audio in Storage
-        textEl.textContent = data.story_text;
-        toggleBtn.style.display = 'block';
-        pickerEl.innerHTML = '';
-
-        const names = Object.keys(data.audio_paths);
-        const urls = {};
-        for (const [voice, filePath] of Object.entries(data.audio_paths)) {
-          const { data: fileData } = sb.storage.from('story-audio').getPublicUrl(filePath);
-          urls[voice] = fileData.publicUrl;
-        }
-
-        let libActiveVoice = names[0];
-        audioEl.src = urls[libActiveVoice];
-
-        function buildLibPicker() {
-          pickerEl.innerHTML = '';
-          for (const name of names) {
-            const b = document.createElement('button');
-            b.className = 'voice-btn' + (name === libActiveVoice ? ' active' : '');
-            b.textContent = name;
-            b.onclick = () => {
-              const wasPlaying = !audioEl.paused;
-              const t = audioEl.currentTime;
-              libActiveVoice = name;
-              audioEl.src = urls[name];
-              audioEl.currentTime = t;
-              if (wasPlaying) audioEl.play();
-              buildLibPicker();
-            };
-            pickerEl.appendChild(b);
-          }
-        }
-        buildLibPicker();
       } else if (data.story_text) {
-        // Story without saved audio (old entries): regenerate TTS
+        // Story: regenerate TTS
         textEl.textContent = data.story_text;
         toggleBtn.style.display = 'block';
         pickerEl.innerHTML = '<span class="spinner"></span> Generation audio...';
