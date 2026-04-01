@@ -813,26 +813,32 @@
 
   <script>
     // --- Supabase init ---
-    let supabase = null;
+    let sb = null; // Supabase client (avoid name collision with window.supabase)
     let currentUser = null;
 
     async function initSupabase() {
       try {
         const res = await fetch('/api/config');
         const { supabaseUrl, supabaseAnonKey } = await res.json();
-        if (supabaseUrl && supabaseAnonKey) {
-          supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
-          // Check existing session
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session) setUser(session.user);
-          // Listen for auth changes
-          supabase.auth.onAuthStateChange((event, session) => {
-            if (session) setUser(session.user);
-            else setUser(null);
-          });
+        if (!supabaseUrl || !supabaseAnonKey) {
+          console.warn('Supabase not configured (missing URL or key)');
+          return;
         }
+        if (!window.supabase || !window.supabase.createClient) {
+          console.warn('Supabase SDK not loaded');
+          return;
+        }
+        sb = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+        // Check existing session
+        const { data: { session } } = await sb.auth.getSession();
+        if (session) setUser(session.user);
+        // Listen for auth changes
+        sb.auth.onAuthStateChange((event, session) => {
+          if (session) setUser(session.user);
+          else setUser(null);
+        });
       } catch (e) {
-        console.warn('Supabase not configured:', e.message);
+        console.warn('Supabase init error:', e.message);
       }
     }
 
@@ -900,9 +906,9 @@
       try {
         let result;
         if (authMode === 'login') {
-          result = await supabase.auth.signInWithPassword({ email, password });
+          result = await sb.auth.signInWithPassword({ email, password });
         } else {
-          result = await supabase.auth.signUp({ email, password });
+          result = await sb.auth.signUp({ email, password });
         }
 
         if (result.error) throw result.error;
@@ -927,7 +933,7 @@
     }
 
     async function logout() {
-      await supabase.auth.signOut();
+      await sb.auth.signOut();
       setUser(null);
       showGenerator();
     }
@@ -937,7 +943,7 @@
     let lastGeneratedComptineUrl = null;
 
     async function saveToLibrary() {
-      if (!currentUser || !supabase) {
+      if (!currentUser || !sb) {
         openAuthModal('login');
         return;
       }
@@ -968,7 +974,7 @@
           audio_url: lastGeneratedComptineUrl || null,
         };
 
-        const { error } = await supabase.from('stories').insert(record);
+        const { error } = await sb.from('stories').insert(record);
         if (error) throw error;
 
         saveBtn.textContent = 'Sauvegardee !';
@@ -1003,7 +1009,7 @@
       document.getElementById('library-player').style.display = 'none';
 
       try {
-        const { data, error } = await supabase
+        const { data, error } = await sb
           .from('stories')
           .select('*')
           .eq('user_id', currentUser.id)
@@ -1041,7 +1047,7 @@
     }
 
     async function playFromLibrary(id) {
-      const { data, error } = await supabase.from('stories').select('*').eq('id', id).single();
+      const { data, error } = await sb.from('stories').select('*').eq('id', id).single();
       if (error || !data) return;
 
       const player = document.getElementById('library-player');
@@ -1119,7 +1125,7 @@
 
     async function deleteFromLibrary(id) {
       if (!confirm('Supprimer cette histoire ?')) return;
-      await supabase.from('stories').delete().eq('id', id);
+      await sb.from('stories').delete().eq('id', id);
       loadLibrary();
     }
 
