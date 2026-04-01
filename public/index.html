@@ -513,33 +513,14 @@
       statusEl.innerHTML = `<span class="spinner"></span> Creation de la ${label}...`;
 
       try {
-        // Step 1: Generate text (story or lyrics)
-        const storyRes = await fetch('/api/generate-story', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            context,
-            mode,
-            duration: parseInt(document.getElementById('duration').value),
-            age: parseInt(document.getElementById('age').value),
-            language,
-          }),
-        });
-
-        if (!storyRes.ok) throw new Error('Erreur lors de la generation');
-        const { story } = await storyRes.json();
-
-        storyTextEl.textContent = story;
-        storyBox.classList.add('visible');
-
         if (mode === 'comptine') {
-          // Step 2a: Comptine → Suno (start + poll from browser)
+          // Comptine → envoyer directement a Suno
           statusEl.innerHTML = '<span class="spinner"></span> Composition de la chanson...';
 
           const songRes = await fetch('/api/generate-song', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: story, language }),
+            body: JSON.stringify({ context, language, age: parseInt(document.getElementById('age').value) }),
           });
 
           if (!songRes.ok) throw new Error('Erreur lors du lancement de la chanson');
@@ -571,7 +552,25 @@
           audioSection.classList.add('visible');
           statusEl.textContent = 'Comptine prete !';
         } else {
-          // Step 2b: Histoire → OpenAI TTS (toutes les voix)
+          // Histoire → Claude + OpenAI TTS
+          const storyRes = await fetch('/api/generate-story', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              context,
+              mode,
+              duration: parseInt(document.getElementById('duration').value),
+              age: parseInt(document.getElementById('age').value),
+              language,
+            }),
+          });
+
+          if (!storyRes.ok) throw new Error('Erreur lors de la generation');
+          const { story } = await storyRes.json();
+
+          storyTextEl.textContent = story;
+          storyBox.classList.add('visible');
+
           const count = voiceNames.length || '...';
           statusEl.innerHTML = `<span class="spinner"></span> Generation des voix (${count} variantes)...`;
 

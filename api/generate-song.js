@@ -4,12 +4,16 @@ const SUNO_BASE_URL = "https://api.sunoapi.org";
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { text, language = "fr" } = req.body;
-  if (!text) return res.status(400).json({ error: "Texte manquant" });
+  const { context, language = "fr", age = 4 } = req.body;
+  if (!context) return res.status(400).json({ error: "Contexte manquant" });
+
+  const prompt = language === "fr"
+    ? `Une comptine joyeuse pour enfant de ${age} ans sur le theme : ${context}`
+    : `A cheerful nursery rhyme for a ${age}-year-old child about: ${context}`;
 
   const style = language === "fr"
-    ? "comptine pour enfants, joyeux, acoustique, voix douce feminine"
-    : "children nursery rhyme, cheerful, acoustic, soft female voice";
+    ? "comptine pour enfants, joyeux, acoustique, voix douce feminine, francais"
+    : "children nursery rhyme, cheerful, acoustic, soft female voice, english";
 
   try {
     const genRes = await fetch(`${SUNO_BASE_URL}/api/v1/generate`, {
@@ -19,12 +23,11 @@ export default async function handler(req, res) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        customMode: true,
+        customMode: false,
         instrumental: false,
         model: "V4_5ALL",
+        prompt,
         style,
-        title: "Comptine",
-        prompt: text,
         callBackUrl: "https://example.com/callback",
       }),
     });
