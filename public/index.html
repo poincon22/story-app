@@ -811,6 +811,7 @@
         <button class="refine-submit" id="refine-submit" onclick="refineStory()">Appliquer les modifications</button>
       </div>
       <button class="save-btn" id="save-btn" onclick="saveToLibrary()" style="display:none">Sauvegarder dans ma bibliotheque</button>
+      <p class="save-login-hint" id="save-login-hint" style="display:none; color:#999; font-size:0.8rem; margin-top:4px;">Connectez-vous pour sauvegarder</p>
     </div>
     </div><!-- end generator-view -->
 
@@ -880,6 +881,8 @@
       updateAuthBar();
     }
 
+    let pendingSaveAfterLogin = false;
+
     function updateAuthBar() {
       const bar = document.getElementById('auth-bar');
       if (currentUser) {
@@ -888,10 +891,13 @@
           <span class="user-email">${currentUser.email}</span>
           <button onclick="logout()">Deconnexion</button>
         `;
-        document.getElementById('save-btn').style.display = 'inline-block';
+        // If user just logged in and wanted to save, do it now
+        if (pendingSaveAfterLogin) {
+          pendingSaveAfterLogin = false;
+          saveToLibrary();
+        }
       } else {
         bar.innerHTML = `<button id="auth-login-btn" onclick="openAuthModal('login')">Se connecter</button>`;
-        document.getElementById('save-btn').style.display = 'none';
       }
     }
 
@@ -974,6 +980,7 @@
 
     async function saveToLibrary() {
       if (!currentUser || !sb) {
+        pendingSaveAfterLogin = true;
         openAuthModal('login');
         return;
       }
@@ -1368,7 +1375,7 @@
           document.getElementById('refine-btn').style.display = 'none';
           document.getElementById('refine-section').classList.remove('visible');
           storyBox.classList.remove('visible');
-          if (currentUser) document.getElementById('save-btn').style.display = 'inline-block';
+          document.getElementById('save-btn').style.display = 'inline-block';
           audioSection.classList.add('visible');
           statusEl.textContent = 'Comptine prete !';
         } else {
@@ -1421,6 +1428,7 @@
           document.getElementById('refine-btn').style.display = 'inline-block';
           document.getElementById('refine-section').classList.remove('visible');
           document.getElementById('refine-btn').textContent = 'Ameliorer l\'histoire';
+          document.getElementById('save-btn').style.display = 'inline-block';
           audioSection.classList.add('visible');
           statusEl.textContent = 'Histoire prete ! Cliquez sur une voix pour changer.';
         }
