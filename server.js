@@ -90,6 +90,24 @@ app.post("/api/text-to-speech-all", async (req, res) => {
   }
 });
 
+// Transcribe audio to text using Whisper
+app.post("/api/transcribe", express.raw({ type: "*/*", limit: "25mb" }), async (req, res) => {
+  try {
+    const file = new File([req.body], "audio.webm", { type: "audio/webm" });
+
+    const transcription = await openai.audio.transcriptions.create({
+      file,
+      model: "whisper-1",
+      language: "fr",
+    });
+
+    res.json({ text: transcription.text });
+  } catch (err) {
+    console.error("Transcription error:", err.message);
+    res.status(500).json({ error: "Erreur lors de la transcription" });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
