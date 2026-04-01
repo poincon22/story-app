@@ -247,6 +247,70 @@
       color: #667eea;
     }
 
+    .refine-section {
+      margin-top: 12px;
+      display: none;
+    }
+
+    .refine-section.visible {
+      display: block;
+    }
+
+    .refine-btn {
+      margin-top: 12px;
+      padding: 10px 20px;
+      border: 2px solid #764ba2;
+      border-radius: 10px;
+      background: white;
+      color: #764ba2;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      width: auto;
+    }
+
+    .refine-btn:hover {
+      background: #764ba2;
+      color: white;
+    }
+
+    .refine-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .refine-input {
+      margin-top: 10px;
+    }
+
+    .refine-input textarea {
+      min-height: 60px;
+      padding: 12px 16px;
+    }
+
+    .refine-submit {
+      margin-top: 8px;
+      padding: 10px 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s, opacity 0.2s;
+    }
+
+    .refine-submit:hover:not(:disabled) {
+      transform: translateY(-1px);
+    }
+
+    .refine-submit:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
     .audio-section {
       margin-top: 20px;
       display: none;
@@ -382,6 +446,13 @@
       <button class="toggle-text-btn" id="toggle-text-btn" onclick="toggleStoryText()">Voir le texte</button>
       <div class="story-box" id="story-box">
         <div class="story-text" id="story-text"></div>
+      </div>
+      <button class="refine-btn" id="refine-btn" onclick="toggleRefine()">Ameliorer l'histoire</button>
+      <div class="refine-section" id="refine-section">
+        <div class="refine-input">
+          <textarea id="refine-instructions" placeholder="Decrivez les modifications souhaitees..."></textarea>
+        </div>
+        <button class="refine-submit" id="refine-submit" onclick="refineStory()">Appliquer les modifications</button>
       </div>
     </div>
 
@@ -572,6 +643,8 @@
           audioPlayer.src = audioUrl;
           voicePicker.innerHTML = '';
           document.getElementById('toggle-text-btn').style.display = 'none';
+          document.getElementById('refine-btn').style.display = 'none';
+          document.getElementById('refine-section').classList.remove('visible');
           storyBox.classList.remove('visible');
           audioSection.classList.add('visible');
           statusEl.textContent = 'Comptine prete !';
@@ -592,6 +665,7 @@
           if (!storyRes.ok) throw new Error('Erreur lors de la generation');
           const { story } = await storyRes.json();
 
+          currentStory = story;
           storyTextEl.textContent = story;
           storyBox.classList.remove('visible');
           document.getElementById('toggle-text-btn').textContent = 'Voir le texte';
@@ -619,6 +693,9 @@
           audioPlayer.src = audioUrls[activeVoice];
           buildVoicePicker();
           document.getElementById('toggle-text-btn').style.display = 'block';
+          document.getElementById('refine-btn').style.display = 'inline-block';
+          document.getElementById('refine-section').classList.remove('visible');
+          document.getElementById('refine-btn').textContent = 'Ameliorer l\'histoire';
           audioSection.classList.add('visible');
           statusEl.textContent = 'Histoire prete ! Cliquez sur une voix pour changer.';
         }
@@ -643,6 +720,88 @@
       } else {
         storyBox.classList.add('visible');
         toggleBtn.textContent = 'Masquer le texte';
+      }
+    }
+
+    // --- Refine story ---
+    let currentStory = '';
+
+    function toggleRefine() {
+      const section = document.getElementById('refine-section');
+      const btn = document.getElementById('refine-btn');
+      if (section.classList.contains('visible')) {
+        section.classList.remove('visible');
+        btn.textContent = 'Ameliorer l\'histoire';
+      } else {
+        section.classList.add('visible');
+        btn.textContent = 'Annuler';
+        document.getElementById('refine-instructions').focus();
+      }
+    }
+
+    async function refineStory() {
+      const instructions = document.getElementById('refine-instructions').value.trim();
+      if (!instructions || !currentStory) return;
+
+      const language = document.getElementById('language').value;
+      const refineSubmit = document.getElementById('refine-submit');
+      const refineBtn = document.getElementById('refine-btn');
+
+      refineSubmit.disabled = true;
+      refineBtn.disabled = true;
+      errorEl.textContent = '';
+      statusEl.innerHTML = '<span class="spinner"></span> Modification de l\'histoire...';
+
+      try {
+        const res = await fetch('/api/refine-story', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ story: currentStory, instructions, language }),
+        });
+
+        if (!res.ok) throw new Error('Erreur lors de la modification');
+        const { story } = await res.json();
+
+        currentStory = story;
+        storyTextEl.textContent = story;
+
+        // Regenerate all voices with the new story
+        const count = voiceNames.length || '...';
+        statusEl.innerHTML = `<span class="spinner"></span> Regeneration des voix (${count} variantes)...`;
+
+        const audioRes = await fetch('/api/text-to-speech-all', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: story }),
+        });
+
+        if (!audioRes.ok) throw new Error('Erreur lors de la synthese vocale');
+
+        const { audioMap } = await audioRes.json();
+        voiceNames = Object.keys(audioMap);
+        audioUrls = {};
+        for (const [voice, base64] of Object.entries(audioMap)) {
+          const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+          const blob = new Blob([bytes], { type: 'audio/mpeg' });
+          audioUrls[voice] = URL.createObjectURL(blob);
+        }
+
+        activeVoice = voiceNames[0];
+        audioPlayer.src = audioUrls[activeVoice];
+        buildVoicePicker();
+
+        // Reset refine UI
+        document.getElementById('refine-instructions').value = '';
+        document.getElementById('refine-section').classList.remove('visible');
+        refineBtn.textContent = 'Ameliorer l\'histoire';
+
+        statusEl.textContent = 'Histoire modifiee ! Cliquez sur une voix pour changer.';
+      } catch (err) {
+        errorEl.textContent = err.message;
+        statusEl.textContent = '';
+      } finally {
+        refineSubmit.disabled = false;
+        refineBtn.disabled = false;
       }
     }
 
