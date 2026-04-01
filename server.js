@@ -138,41 +138,51 @@ app.post("/api/text-to-speech-all", async (req, res) => {
   }
 });
 
-// Generate a sung comptine using Suno API
+// Suno API - Start song generation
 const SUNO_API_KEY = process.env.SUNO_API_KEY;
 const SUNO_BASE_URL = "https://api.sunoapi.org";
 
-async function generateSunoSong(lyrics, language) {
+app.post("/api/generate-song", async (req, res) => {
+  const { text, language = "fr" } = req.body;
+  if (!text) return res.status(400).json({ error: "Texte manquant" });
+
   const style = language === "fr"
     ? "comptine pour enfants, joyeux, acoustique, voix douce feminine"
     : "children nursery rhyme, cheerful, acoustic, soft female voice";
 
-  // 1. Start generation
-  const genRes = await fetch(`${SUNO_BASE_URL}/api/v1/generate`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${SUNO_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      customMode: true,
-      instrumental: false,
-      model: "V4_5ALL",
-      style,
-      title: "Comptine",
-      prompt: lyrics,
-      callBackUrl: "https://example.com/callback",
-    }),
-  });
+  try {
+    const genRes = await fetch(`${SUNO_BASE_URL}/api/v1/generate`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${SUNO_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        customMode: true,
+        instrumental: false,
+        model: "V4_5ALL",
+        style,
+        title: "Comptine",
+        prompt: text,
+        callBackUrl: "https://example.com/callback",
+      }),
+    });
 
-  const genData = await genRes.json();
-  if (genData.code !== 200) throw new Error(genData.msg || "Suno generation failed");
-  const taskId = genData.data.taskId;
+    const genData = await genRes.json();
+    if (genData.code !== 200) throw new Error(genData.msg || "Suno generation failed");
+    res.json({ taskId: genData.data.taskId });
+  } catch (err) {
+    console.error("Suno start error:", err.message);
+    res.status(500).json({ error: "Erreur lors du lancement de la chanson" });
+  }
+});
 
-  // 2. Poll for result (max 90 seconds)
-  for (let i = 0; i < 30; i++) {
-    await new Promise((r) => setTimeout(r, 3000));
+// Suno API - Poll song status
+app.get("/api/song-status", async (req, res) => {
+  const { taskId } = req.query;
+  if (!taskId) return res.status(400).json({ error: "taskId manquant" });
 
+  try {
     const statusRes = await fetch(
       `${SUNO_BASE_URL}/api/v1/generate/record-info?taskId=${taskId}`,
       { headers: { Authorization: `Bearer ${SUNO_API_KEY}` } }
@@ -183,27 +193,15 @@ async function generateSunoSong(lyrics, language) {
     if (status === "SUCCESS") {
       const songs = statusData.data.response?.sunoData || [];
       if (songs.length > 0 && songs[0].audioUrl) {
-        return songs[0].audioUrl;
+        return res.json({ status: "SUCCESS", audioUrl: songs[0].audioUrl });
       }
-      throw new Error("No audio URL in Suno response");
+      return res.json({ status: "FAILED" });
     }
-    if (status === "FAILED") {
-      throw new Error("Suno generation failed");
-    }
-  }
-  throw new Error("Suno generation timeout");
-}
 
-app.post("/api/generate-song", async (req, res) => {
-  const { text, language = "fr" } = req.body;
-  if (!text) return res.status(400).json({ error: "Texte manquant" });
-
-  try {
-    const audioUrl = await generateSunoSong(text, language);
-    res.json({ audioUrl });
+    res.json({ status: status || "PENDING" });
   } catch (err) {
-    console.error("Suno error:", err.message);
-    res.status(500).json({ error: "Erreur lors de la generation de la chanson" });
+    console.error("Suno poll error:", err.message);
+    res.status(500).json({ error: "Erreur lors de la verification" });
   }
 });
 
