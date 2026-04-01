@@ -1338,7 +1338,6 @@
     let lastGeneratedComptineUrl = null;
 
     async function saveToLibrary() {
-      alert('saveToLibrary called - mode=' + lastGeneratedMode + ' audioUrls=' + Object.keys(audioUrls).length);
       if (!currentUser || !sb) {
         pendingSaveAfterLogin = true;
         openAuthModal('login');
@@ -1397,7 +1396,7 @@
               .upload(filePath, blob, { contentType: 'audio/mpeg', upsert: true });
 
             if (uploadError) {
-              console.error('Upload error for', voice, ':', uploadError.message);
+              alert('Upload FAILED for ' + voice + ': ' + uploadError.message);
             } else {
               audioPaths[voice] = filePath;
               console.log('Uploaded', voice, 'OK');
@@ -1412,10 +1411,10 @@
             if (updateError) console.error('Update audio_paths error:', updateError.message);
             else console.log('audio_paths saved to DB');
           } else {
-            console.warn('No audio uploaded successfully');
+            alert('No audio uploaded - audioPaths is empty');
           }
         } else {
-          console.warn('Skipped audio upload: mode=', lastGeneratedMode, 'audioUrls=', Object.keys(audioUrls).length);
+          alert('Skipped audio upload: mode=' + lastGeneratedMode + ' audioUrls=' + Object.keys(audioUrls).length);
         }
 
         saveBtn.textContent = 'Sauvegardee !';
