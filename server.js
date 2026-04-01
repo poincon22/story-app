@@ -161,6 +161,7 @@ async function generateSunoSong(lyrics, language) {
       style,
       title: "Comptine",
       prompt: lyrics,
+      callBackUrl: "https://example.com/callback",
     }),
   });
 
@@ -180,9 +181,9 @@ async function generateSunoSong(lyrics, language) {
     const status = statusData.data?.status;
 
     if (status === "SUCCESS") {
-      const songs = statusData.data.response?.data || [];
-      if (songs.length > 0 && songs[0].audio_url) {
-        return songs[0].audio_url;
+      const songs = statusData.data.response?.sunoData || [];
+      if (songs.length > 0 && songs[0].audioUrl) {
+        return songs[0].audioUrl;
       }
       throw new Error("No audio URL in Suno response");
     }
