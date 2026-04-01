@@ -22,10 +22,12 @@ export default async function handler(req, res) {
     // Create a File-like object for the OpenAI API
     const file = new File([buffer], "audio.webm", { type: "audio/webm" });
 
+    const lang = req.query.lang || "fr";
+
     const transcription = await openai.audio.transcriptions.create({
       file,
       model: "whisper-1",
-      language: "fr",
+      language: lang,
     });
 
     // Whisper hallucinate quand l'audio est vide/silencieux

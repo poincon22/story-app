@@ -315,6 +315,14 @@
       </select>
     </div>
 
+    <div class="input-group">
+      <label for="language">Langue</label>
+      <select id="language">
+        <option value="fr" selected>Francais</option>
+        <option value="en">English</option>
+      </select>
+    </div>
+
     <button class="primary" id="generate-btn" onclick="generate()">Creer mon histoire</button>
 
     <p class="status" id="status"></p>
@@ -412,7 +420,8 @@
       errorEl.textContent = '';
 
       try {
-        const res = await fetch('/api/transcribe', {
+        const lang = document.getElementById('language').value;
+        const res = await fetch('/api/transcribe?lang=' + lang, {
           method: 'POST',
           headers: { 'Content-Type': blob.type },
           body: blob,
@@ -473,7 +482,11 @@
         const storyRes = await fetch('/api/generate-story', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ context, duration: parseInt(document.getElementById('duration').value) }),
+          body: JSON.stringify({
+          context,
+          duration: parseInt(document.getElementById('duration').value),
+          language: document.getElementById('language').value,
+        }),
         });
 
         if (!storyRes.ok) throw new Error('Erreur lors de la generation');
