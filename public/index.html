@@ -671,8 +671,200 @@
       transform: translateX(-50%) translateY(0);
     }
 
-    /* Mobile */
-    @media (max-width: 480px) {
+    /* Premium tooltips */
+    .premium-wrapper {
+      position: relative;
+      display: inline-block;
+    }
+
+    .premium-wrapper.locked::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #333;
+      color: white;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 500;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+      z-index: 10;
+    }
+
+    .premium-wrapper.locked:hover::after {
+      opacity: 1;
+    }
+
+    .premium-wrapper.locked > button {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    select option:disabled {
+      color: #bbb;
+    }
+
+    .premium-hint {
+      font-size: 0.75rem;
+      color: #bbb;
+      margin-top: 4px;
+      display: none;
+    }
+
+    .premium-hint.visible {
+      display: block;
+    }
+
+    .premium-hint svg {
+      width: 12px;
+      height: 12px;
+      vertical-align: -1px;
+      margin-right: 2px;
+    }
+
+    /* Account page */
+    .account-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 24px;
+      border-bottom: 2px solid #e0e0e0;
+    }
+
+    .account-tab {
+      padding: 12px 20px;
+      border: none;
+      background: none;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #999;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.2s;
+    }
+
+    .account-tab:hover {
+      color: #764ba2;
+    }
+
+    .account-tab.active {
+      color: #764ba2;
+      border-bottom-color: #764ba2;
+    }
+
+    .account-tab.locked {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.visible {
+      display: block;
+    }
+
+    /* Subscription cards */
+    .subscription-cards {
+      display: flex;
+      gap: 16px;
+      margin-top: 8px;
+    }
+
+    .plan-card {
+      flex: 1;
+      padding: 24px;
+      border: 2px solid #e0e0e0;
+      border-radius: 16px;
+      text-align: center;
+      transition: all 0.2s;
+    }
+
+    .plan-card.current {
+      border-color: #764ba2;
+      background: #f8f6ff;
+    }
+
+    .plan-card h3 {
+      font-size: 1.15rem;
+      color: #333;
+      margin-bottom: 4px;
+    }
+
+    .plan-card .plan-price {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #764ba2;
+      margin: 10px 0;
+    }
+
+    .plan-card .plan-price span {
+      font-size: 0.85rem;
+      font-weight: 400;
+      color: #999;
+    }
+
+    .plan-card ul {
+      list-style: none;
+      text-align: left;
+      margin: 16px 0;
+      font-size: 0.85rem;
+      color: #555;
+    }
+
+    .plan-card ul li {
+      padding: 5px 0;
+    }
+
+    .plan-card ul li::before {
+      content: "✓ ";
+      color: #27ae60;
+      font-weight: 700;
+    }
+
+    .plan-card ul li.disabled::before {
+      content: "✗ ";
+      color: #ccc;
+    }
+
+    .plan-card ul li.disabled {
+      color: #bbb;
+    }
+
+    .plan-card .plan-btn {
+      margin-top: 12px;
+      padding: 10px 24px;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      border: 2px solid #764ba2;
+      width: 100%;
+    }
+
+    .plan-card .plan-btn.subscribe {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+    }
+
+    .plan-card .plan-btn.subscribe:hover {
+      transform: translateY(-1px);
+    }
+
+    .plan-card .plan-btn.current-badge {
+      background: #f0ecf7;
+      color: #764ba2;
+      cursor: default;
+    }
+
     @media (max-width: 480px) {
       body { padding: 8px; align-items: flex-start; padding-top: 16px; }
       .container { padding: 20px; border-radius: 20px; }
@@ -681,6 +873,7 @@
       textarea { min-height: 80px; font-size: 0.95rem; }
       button.primary { padding: 14px; font-size: 1rem; }
       .voice-btn { padding: 7px 11px; font-size: 0.8rem; }
+      .subscription-cards { flex-direction: column; }
     }
   </style>
 </head>
@@ -746,6 +939,7 @@
         <option value="story" selected>Histoire racontee</option>
         <option value="comptine">Comptine chantee</option>
       </select>
+      <p class="premium-hint" id="mode-premium-hint"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-2h2v2h-2zm0-4V7h2v6h-2z"/></svg> Abonnement requis pour les comptines</p>
     </div>
 
     <div class="input-group" id="duration-group">
@@ -759,6 +953,7 @@
         <option value="240">4'</option>
         <option value="300">5'</option>
       </select>
+      <p class="premium-hint" id="duration-premium-hint"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-2h2v2h-2zm0-4V7h2v6h-2z"/></svg> Abonnement requis pour les durees superieures a 1'</p>
     </div>
 
     <div class="input-group">
@@ -803,34 +998,82 @@
       <div class="story-box" id="story-box">
         <div class="story-text" id="story-text"></div>
       </div>
-      <button class="refine-btn" id="refine-btn" onclick="toggleRefine()">Ameliorer l'histoire</button>
+      <div class="premium-wrapper" id="refine-wrapper" data-tooltip="Abonnement requis pour ameliorer l'histoire">
+        <button class="refine-btn" id="refine-btn" onclick="handleRefineClick()">Ameliorer l'histoire</button>
+      </div>
       <div class="refine-section" id="refine-section">
         <div class="refine-input">
           <textarea id="refine-instructions" placeholder="Decrivez les modifications souhaitees..."></textarea>
         </div>
         <button class="refine-submit" id="refine-submit" onclick="refineStory()">Appliquer les modifications</button>
       </div>
-      <button class="save-btn" id="save-btn" onclick="saveToLibrary()" style="display:none">Sauvegarder dans ma bibliotheque</button>
-      <p class="save-login-hint" id="save-login-hint" style="display:none; color:#999; font-size:0.8rem; margin-top:4px;">Connectez-vous pour sauvegarder</p>
+      <div class="premium-wrapper" id="save-wrapper" data-tooltip="Abonnement requis pour sauvegarder">
+        <button class="save-btn" id="save-btn" onclick="saveToLibrary()" style="display:none">Sauvegarder dans ma bibliotheque</button>
+      </div>
     </div>
     </div><!-- end generator-view -->
 
-    <!-- Library view -->
-    <div class="library-view" id="library-view">
+    <!-- Account view -->
+    <div class="library-view" id="account-view">
       <div class="library-header">
-        <h2>Ma bibliotheque</h2>
+        <h2>Mon compte</h2>
         <button onclick="showGenerator()">Nouvelle histoire</button>
       </div>
-      <div id="library-content">
-        <p class="library-empty">Chargement...</p>
+
+      <div class="account-tabs">
+        <button class="account-tab active" id="tab-library" onclick="switchAccountTab('library')">Ma bibliotheque</button>
+        <button class="account-tab" id="tab-subscription" onclick="switchAccountTab('subscription')">Mon abonnement</button>
       </div>
-      <div class="library-player" id="library-player" style="display:none">
-        <div class="story-label" id="library-player-title"></div>
-        <div class="voice-picker" id="library-voice-picker"></div>
-        <audio id="library-audio-player" controls></audio>
-        <button class="toggle-text-btn" id="library-toggle-text" onclick="toggleLibraryText()">Voir le texte</button>
-        <div class="story-box" id="library-story-box">
-          <div class="story-text" id="library-story-text"></div>
+
+      <!-- Library tab -->
+      <div class="tab-content visible" id="tab-content-library">
+        <div id="library-content">
+          <p class="library-empty">Chargement...</p>
+        </div>
+        <div class="library-player" id="library-player" style="display:none">
+          <div class="story-label" id="library-player-title"></div>
+          <div class="voice-picker" id="library-voice-picker"></div>
+          <audio id="library-audio-player" controls></audio>
+          <button class="toggle-text-btn" id="library-toggle-text" onclick="toggleLibraryText()">Voir le texte</button>
+          <div class="story-box" id="library-story-box">
+            <div class="story-text" id="library-story-text"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Subscription tab -->
+      <div class="tab-content" id="tab-content-subscription">
+        <div class="subscription-cards" id="subscription-cards">
+          <div class="plan-card" id="plan-free-card">
+            <h3>Gratuit</h3>
+            <div class="plan-price">0&euro;<span>/mois</span></div>
+            <ul>
+              <li>Histoires racontees</li>
+              <li>Duree jusqu'a 1 minute</li>
+              <li>6 voix disponibles</li>
+              <li>Enregistrement vocal</li>
+              <li class="disabled">Comptines chantees</li>
+              <li class="disabled">Durees jusqu'a 5 minutes</li>
+              <li class="disabled">Ameliorer l'histoire</li>
+              <li class="disabled">Sauvegarder dans la bibliotheque</li>
+            </ul>
+            <button class="plan-btn current-badge" id="plan-free-btn">Plan actuel</button>
+          </div>
+          <div class="plan-card" id="plan-premium-card">
+            <h3>Premium</h3>
+            <div class="plan-price">4,99&euro;<span>/mois</span></div>
+            <ul>
+              <li>Histoires racontees</li>
+              <li>Durees jusqu'a 5 minutes</li>
+              <li>6 voix disponibles</li>
+              <li>Enregistrement vocal</li>
+              <li>Comptines chantees</li>
+              <li>Ameliorer l'histoire</li>
+              <li>Sauvegarder dans la bibliotheque</li>
+              <li>Nouvelles fonctionnalites en avant-premiere</li>
+            </ul>
+            <button class="plan-btn subscribe" id="plan-premium-btn" onclick="subscribePremium()">Souscrire</button>
+          </div>
         </div>
       </div>
     </div>
@@ -876,29 +1119,102 @@
       }
     }
 
-    function setUser(user) {
+    async function setUser(user) {
       currentUser = user;
+      if (user) {
+        await loadUserPlan();
+      } else {
+        userPlan = 'free';
+      }
       updateAuthBar();
     }
 
     let pendingSaveAfterLogin = false;
+    let userPlan = 'free'; // 'free' or 'premium'
+
+    function isPremium() {
+      return userPlan === 'premium';
+    }
 
     function updateAuthBar() {
       const bar = document.getElementById('auth-bar');
       if (currentUser) {
         bar.innerHTML = `
-          <button class="library-btn" onclick="showLibrary()">Ma bibliotheque</button>
+          <button class="library-btn" onclick="showAccount()">Mon compte</button>
           <span class="user-email">${currentUser.email}</span>
           <button onclick="logout()">Deconnexion</button>
         `;
         // If user just logged in and wanted to save, do it now
         if (pendingSaveAfterLogin) {
           pendingSaveAfterLogin = false;
-          saveToLibrary();
+          if (isPremium()) {
+            saveToLibrary();
+          } else {
+            showToast('Abonnement requis pour sauvegarder');
+            pendingSaveAfterLogin = false;
+          }
         }
       } else {
         bar.innerHTML = `<button id="auth-login-btn" onclick="openAuthModal('login')">Se connecter</button>`;
       }
+      updatePremiumUI();
+    }
+
+    // --- Premium gating ---
+    function updatePremiumUI() {
+      const premium = isPremium();
+
+      // Mode select: disable comptine for free users
+      const comptineOption = document.querySelector('#mode option[value="comptine"]');
+      comptineOption.disabled = !premium;
+      document.getElementById('mode-premium-hint').classList.toggle('visible', !premium);
+
+      // Duration select: disable > 60s for free users
+      document.querySelectorAll('#duration option').forEach(opt => {
+        if (parseInt(opt.value) > 60) {
+          opt.disabled = !premium;
+        }
+      });
+      document.getElementById('duration-premium-hint').classList.toggle('visible', !premium);
+
+      // Refine button
+      const refineWrapper = document.getElementById('refine-wrapper');
+      refineWrapper.classList.toggle('locked', !premium);
+
+      // Save button
+      const saveWrapper = document.getElementById('save-wrapper');
+      saveWrapper.classList.toggle('locked', !premium);
+
+      // Account tab: library
+      const tabLibrary = document.getElementById('tab-library');
+      tabLibrary.classList.toggle('locked', !premium);
+    }
+
+    async function loadUserPlan() {
+      if (!currentUser || !sb) {
+        userPlan = 'free';
+        return;
+      }
+      try {
+        const { data, error } = await sb
+          .from('profiles')
+          .select('plan')
+          .eq('id', currentUser.id)
+          .single();
+
+        if (error || !data) {
+          // Profile doesn't exist yet, create it
+          await sb.from('profiles').insert({ id: currentUser.id, plan: 'free' });
+          userPlan = 'free';
+        } else {
+          userPlan = data.plan || 'free';
+        }
+      } catch (e) {
+        console.warn('Failed to load plan:', e.message);
+        userPlan = 'free';
+      }
+      updatePremiumUI();
+      updateSubscriptionUI();
     }
 
     // --- Auth modal ---
@@ -984,6 +1300,10 @@
         openAuthModal('login');
         return;
       }
+      if (!isPremium()) {
+        showToast('Abonnement requis pour sauvegarder');
+        return;
+      }
 
       const saveBtn = document.getElementById('save-btn');
       saveBtn.disabled = true;
@@ -1029,15 +1349,95 @@
       }
     }
 
-    function showLibrary() {
+    function showAccount() {
       document.getElementById('generator-view').style.display = 'none';
-      document.getElementById('library-view').classList.add('visible');
-      loadLibrary();
+      document.getElementById('account-view').classList.add('visible');
+      switchAccountTab('subscription'); // default to subscription tab
+      if (isPremium()) {
+        switchAccountTab('library');
+        loadLibrary();
+      }
     }
 
     function showGenerator() {
-      document.getElementById('library-view').classList.remove('visible');
+      document.getElementById('account-view').classList.remove('visible');
       document.getElementById('generator-view').style.display = 'block';
+    }
+
+    function switchAccountTab(tab) {
+      // Block library tab for free users
+      if (tab === 'library' && !isPremium()) {
+        showToast('Abonnement requis pour acceder a la bibliotheque');
+        return;
+      }
+      document.querySelectorAll('.account-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('visible'));
+      document.getElementById('tab-' + tab).classList.add('active');
+      document.getElementById('tab-content-' + tab).classList.add('visible');
+      if (tab === 'library') loadLibrary();
+      if (tab === 'subscription') updateSubscriptionUI();
+    }
+
+    function updateSubscriptionUI() {
+      const freeCard = document.getElementById('plan-free-card');
+      const premiumCard = document.getElementById('plan-premium-card');
+      const freeBtn = document.getElementById('plan-free-btn');
+      const premiumBtn = document.getElementById('plan-premium-btn');
+
+      if (isPremium()) {
+        freeCard.classList.remove('current');
+        premiumCard.classList.add('current');
+        freeBtn.className = 'plan-btn';
+        freeBtn.textContent = '';
+        freeBtn.style.display = 'none';
+        premiumBtn.className = 'plan-btn current-badge';
+        premiumBtn.textContent = 'Abonnement actif';
+        premiumBtn.onclick = null;
+      } else {
+        freeCard.classList.add('current');
+        premiumCard.classList.remove('current');
+        freeBtn.style.display = 'block';
+        freeBtn.className = 'plan-btn current-badge';
+        freeBtn.textContent = 'Plan actuel';
+        premiumBtn.className = 'plan-btn subscribe';
+        premiumBtn.textContent = 'Souscrire';
+        premiumBtn.onclick = subscribePremium;
+      }
+    }
+
+    async function subscribePremium() {
+      if (!currentUser) {
+        openAuthModal('login');
+        return;
+      }
+      // TODO: integrate Stripe here. For now, upgrade directly in Supabase.
+      try {
+        const { error } = await sb
+          .from('profiles')
+          .update({ plan: 'premium' })
+          .eq('id', currentUser.id);
+
+        if (error) throw error;
+
+        userPlan = 'premium';
+        updatePremiumUI();
+        updateSubscriptionUI();
+        showToast('Bienvenue dans le plan Premium !');
+      } catch (e) {
+        console.error('Subscribe error:', e);
+        showToast('Erreur lors de la souscription');
+      }
+    }
+
+    function handleRefineClick() {
+      // Allow closing even for non-premium (in case state got mixed)
+      const section = document.getElementById('refine-section');
+      if (section.classList.contains('visible')) {
+        toggleRefine();
+        return;
+      }
+      if (!isPremium()) return;
+      toggleRefine();
     }
 
     async function loadLibrary() {
@@ -1542,11 +1942,29 @@
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) generate();
     });
 
-    // Show/hide duration based on mode
+    // Show/hide duration based on mode + premium gating
     const modeEl = document.getElementById('mode');
     const durationGroup = document.getElementById('duration-group');
+    let previousMode = modeEl.value;
+
     modeEl.addEventListener('change', () => {
+      if (modeEl.value === 'comptine' && !isPremium()) {
+        modeEl.value = previousMode;
+        return;
+      }
+      previousMode = modeEl.value;
       durationGroup.style.display = modeEl.value === 'comptine' ? 'none' : 'block';
+    });
+
+    const durationEl = document.getElementById('duration');
+    let previousDuration = durationEl.value;
+
+    durationEl.addEventListener('change', () => {
+      if (parseInt(durationEl.value) > 60 && !isPremium()) {
+        durationEl.value = previousDuration;
+        return;
+      }
+      previousDuration = durationEl.value;
     });
 
     // Enter key in auth modal
@@ -1557,8 +1975,9 @@
       if (e.key === 'Enter') document.getElementById('auth-password').focus();
     });
 
-    // Init Supabase on load
+    // Init Supabase on load + set default premium UI
     initSupabase();
+    updatePremiumUI();
   </script>
 </body>
 </html>
