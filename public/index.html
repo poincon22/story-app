@@ -1379,40 +1379,25 @@
         if (error) throw error;
         const storyId = inserted.id;
 
-        // Upload audio files to Supabase Storage
+        // Save audio as base64 directly in database
         if (lastGeneratedMode === 'story' && Object.keys(audioUrls).length > 0) {
           saveBtn.textContent = 'Sauvegarde audio...';
-          const audioPaths = {};
-          const voices = Object.entries(audioUrls);
-          alert('Starting upload of ' + voices.length + ' voices');
+          const audioBase64 = {};
 
-          for (const [voice, blobUrl] of voices) {
+          for (const [voice, blobUrl] of Object.entries(audioUrls)) {
             try {
               const response = await fetch(blobUrl);
               const blob = await response.blob();
-              const filePath = `${currentUser.id}/${storyId}/${voice}.mp3`;
-              alert('Uploading ' + voice + ' size=' + blob.size);
-
-              const { error: uploadError } = await sb.storage
-                .from('story-audio')
-                .upload(filePath, blob, { contentType: 'audio/mpeg', upsert: true });
-
-              if (uploadError) {
-                alert('Upload FAILED ' + voice + ': ' + uploadError.message);
-              } else {
-                audioPaths[voice] = filePath;
-              }
-            } catch (uploadErr) {
-              alert('Upload CRASH ' + voice + ': ' + uploadErr.message);
+              const buffer = await blob.arrayBuffer();
+              const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+              audioBase64[voice] = base64;
+            } catch (e) {
+              console.warn('Failed to convert', voice, e);
             }
           }
 
-          // Save audio paths to DB
-          if (Object.keys(audioPaths).length > 0) {
-            await sb.from('stories').update({ audio_paths: audioPaths }).eq('id', storyId);
-            alert('Saved ' + Object.keys(audioPaths).length + ' audio paths to DB');
-          } else {
-            alert('No audio uploaded successfully');
+          if (Object.keys(audioBase64).length > 0) {
+            await sb.from('stories').update({ audio_data: audioBase64 }).eq('id', storyId);
           }
         }
 
@@ -1637,47 +1622,43 @@
         audioEl.src = data.audio_url;
         pickerEl.innerHTML = '';
         toggleBtn.style.display = 'none';
-      } else if (data.story_text && data.audio_paths && Object.keys(data.audio_paths).length > 0) {
-        // Story with saved audio: load from Storage
+      } else if (data.story_text && data.audio_data && Object.keys(data.audio_data).length > 0) {
+        // Story with saved audio in DB
         textEl.textContent = data.story_text;
         toggleBtn.style.display = 'block';
-        pickerEl.innerHTML = '<span class="spinner"></span> Chargement audio...';
+        pickerEl.innerHTML = '';
         audioEl.src = '';
 
-        try {
-          const names = Object.keys(data.audio_paths);
-          const urls = {};
-
-          for (const [voice, filePath] of Object.entries(data.audio_paths)) {
-            const { data: fileData } = sb.storage.from('story-audio').getPublicUrl(filePath);
-            urls[voice] = fileData.publicUrl;
-          }
-
-          let libActiveVoice = names[0];
-          audioEl.src = urls[libActiveVoice];
-
-          function buildLibPicker() {
-            pickerEl.innerHTML = '';
-            for (const name of names) {
-              const b = document.createElement('button');
-              b.className = 'voice-btn' + (name === libActiveVoice ? ' active' : '');
-              b.textContent = name;
-              b.onclick = () => {
-                const wasPlaying = !audioEl.paused;
-                const t = audioEl.currentTime;
-                libActiveVoice = name;
-                audioEl.src = urls[name];
-                audioEl.currentTime = t;
-                if (wasPlaying) audioEl.play();
-                buildLibPicker();
-              };
-              pickerEl.appendChild(b);
-            }
-          }
-          buildLibPicker();
-        } catch (e) {
-          pickerEl.innerHTML = '<span style="color:#e74c3c;font-size:0.85rem">Erreur audio</span>';
+        const names = Object.keys(data.audio_data);
+        const urls = {};
+        for (const [voice, base64] of Object.entries(data.audio_data)) {
+          const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+          const blob = new Blob([bytes], { type: 'audio/mpeg' });
+          urls[voice] = URL.createObjectURL(blob);
         }
+
+        let libActiveVoice = names[0];
+        audioEl.src = urls[libActiveVoice];
+
+        function buildLibPicker() {
+          pickerEl.innerHTML = '';
+          for (const name of names) {
+            const b = document.createElement('button');
+            b.className = 'voice-btn' + (name === libActiveVoice ? ' active' : '');
+            b.textContent = name;
+            b.onclick = () => {
+              const wasPlaying = !audioEl.paused;
+              const t = audioEl.currentTime;
+              libActiveVoice = name;
+              audioEl.src = urls[name];
+              audioEl.currentTime = t;
+              if (wasPlaying) audioEl.play();
+              buildLibPicker();
+            };
+            pickerEl.appendChild(b);
+          }
+        }
+        buildLibPicker();
       } else if (data.story_text) {
         // Story without saved audio (old entries): regenerate TTS
         textEl.textContent = data.story_text;
