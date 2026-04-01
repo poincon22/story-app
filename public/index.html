@@ -1380,6 +1380,7 @@
         const storyId = inserted.id;
 
         // Upload audio files to Supabase Storage
+        console.log('Save: mode=', lastGeneratedMode, 'audioUrls keys=', Object.keys(audioUrls));
         if (lastGeneratedMode === 'story' && Object.keys(audioUrls).length > 0) {
           saveBtn.textContent = 'Sauvegarde audio...';
           const audioPaths = {};
@@ -1388,20 +1389,32 @@
             const response = await fetch(blobUrl);
             const blob = await response.blob();
             const filePath = `${currentUser.id}/${storyId}/${voice}.mp3`;
+            console.log('Uploading', voice, filePath, 'size=', blob.size);
 
             const { error: uploadError } = await sb.storage
               .from('story-audio')
               .upload(filePath, blob, { contentType: 'audio/mpeg', upsert: true });
 
-            if (!uploadError) {
+            if (uploadError) {
+              console.error('Upload error for', voice, ':', uploadError.message);
+            } else {
               audioPaths[voice] = filePath;
+              console.log('Uploaded', voice, 'OK');
             }
           }
 
+          console.log('audioPaths=', audioPaths);
+
           // Save audio paths to DB
           if (Object.keys(audioPaths).length > 0) {
-            await sb.from('stories').update({ audio_paths: audioPaths }).eq('id', storyId);
+            const { error: updateError } = await sb.from('stories').update({ audio_paths: audioPaths }).eq('id', storyId);
+            if (updateError) console.error('Update audio_paths error:', updateError.message);
+            else console.log('audio_paths saved to DB');
+          } else {
+            console.warn('No audio uploaded successfully');
           }
+        } else {
+          console.warn('Skipped audio upload: mode=', lastGeneratedMode, 'audioUrls=', Object.keys(audioUrls).length);
         }
 
         saveBtn.textContent = 'Sauvegardee !';
