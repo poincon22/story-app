@@ -284,6 +284,112 @@
       margin-top: 12px;
     }
 
+    .video-section {
+      margin-top: 20px;
+      display: none;
+    }
+
+    .video-section.visible {
+      display: block;
+    }
+
+    .video-player-wrapper {
+      position: relative;
+      width: 100%;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #000;
+      aspect-ratio: 16/9;
+    }
+
+    .video-player-wrapper video {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .scene-indicator {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .scene-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ddd;
+      transition: background 0.3s;
+    }
+
+    .scene-dot.active {
+      background: #764ba2;
+    }
+
+    .scene-dot.done {
+      background: #667eea;
+    }
+
+    .video-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .video-controls button {
+      padding: 10px 20px;
+      border: 2px solid #764ba2;
+      border-radius: 10px;
+      background: white;
+      color: #764ba2;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .video-controls button:hover {
+      background: #764ba2;
+      color: white;
+    }
+
+    .video-controls button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .scene-narration {
+      margin-top: 12px;
+      padding: 12px 16px;
+      background: #f8f6ff;
+      border-radius: 12px;
+      color: #444;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      text-align: center;
+      font-style: italic;
+    }
+
+    .progress-bar-container {
+      width: 100%;
+      height: 6px;
+      background: #e0e0e0;
+      border-radius: 3px;
+      margin-top: 12px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      border-radius: 3px;
+      transition: width 0.3s;
+      width: 0%;
+    }
+
     /* Mobile */
     @media (max-width: 480px) {
       body { padding: 8px; align-items: flex-start; padding-top: 16px; }
@@ -324,6 +430,7 @@
       <select id="mode">
         <option value="story" selected>Histoire racontee</option>
         <option value="comptine">Comptine chantee</option>
+        <option value="film">Film</option>
       </select>
     </div>
 
@@ -381,6 +488,20 @@
       <button class="toggle-text-btn" id="toggle-text-btn" onclick="toggleStoryText()">Voir le texte</button>
       <div class="story-box" id="story-box">
         <div class="story-text" id="story-text"></div>
+      </div>
+    </div>
+
+    <div class="video-section" id="video-section">
+      <div class="story-label">Votre film</div>
+      <div class="video-player-wrapper">
+        <video id="video-player" playsinline></video>
+      </div>
+      <div class="scene-indicator" id="scene-indicator"></div>
+      <div class="scene-narration" id="scene-narration"></div>
+      <div class="video-controls">
+        <button id="video-prev-btn" onclick="videoGoPrev()" disabled>Precedent</button>
+        <button id="video-play-btn" onclick="videoPlayAll()">Regarder le film</button>
+        <button id="video-next-btn" onclick="videoGoNext()" disabled>Suivant</button>
       </div>
     </div>
   </div>
@@ -524,12 +645,21 @@
       audioUrls = {};
       storyBox.classList.remove('visible');
       audioSection.classList.remove('visible');
+      videoSection.classList.remove('visible');
+      filmScenes = [];
 
-      const label = mode === 'comptine' ? 'comptine' : 'histoire';
-      statusEl.innerHTML = `<span class="spinner"></span> Creation de la ${label}...`;
+      const labels = { story: 'histoire', comptine: 'comptine', film: 'film' };
+      statusEl.innerHTML = `<span class="spinner"></span> Creation ${mode === 'film' ? 'du' : 'de la'} ${labels[mode]}...`;
 
       try {
-        if (mode === 'comptine') {
+        if (mode === 'film') {
+          // Film → Claude + Runway + TTS
+          await generateFilm(
+            context,
+            language,
+            parseInt(document.getElementById('age').value)
+          );
+        } else if (mode === 'comptine') {
           // Comptine → envoyer directement a Suno
           statusEl.innerHTML = '<span class="spinner"></span> Composition de la chanson...';
 
@@ -648,11 +778,195 @@
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) generate();
     });
 
+    // --- Film mode ---
+    const videoSection = document.getElementById('video-section');
+    const videoPlayer = document.getElementById('video-player');
+    const sceneIndicator = document.getElementById('scene-indicator');
+    const sceneNarration = document.getElementById('scene-narration');
+    const videoPrevBtn = document.getElementById('video-prev-btn');
+    const videoNextBtn = document.getElementById('video-next-btn');
+    const videoPlayBtn = document.getElementById('video-play-btn');
+
+    let filmScenes = []; // [{videoUrl, narration, narrationAudioUrl}]
+    let currentSceneIndex = 0;
+    let isFilmPlaying = false;
+
+    function updateSceneDots() {
+      sceneIndicator.innerHTML = '';
+      filmScenes.forEach((_, i) => {
+        const dot = document.createElement('div');
+        dot.className = 'scene-dot' + (i === currentSceneIndex ? ' active' : '') + (i < currentSceneIndex ? ' done' : '');
+        sceneIndicator.appendChild(dot);
+      });
+    }
+
+    function showScene(index) {
+      if (index < 0 || index >= filmScenes.length) return;
+      currentSceneIndex = index;
+      const scene = filmScenes[index];
+      videoPlayer.src = scene.videoUrl;
+      sceneNarration.textContent = scene.narration;
+      updateSceneDots();
+      videoPrevBtn.disabled = index === 0;
+      videoNextBtn.disabled = index === filmScenes.length - 1;
+    }
+
+    function videoGoPrev() {
+      if (currentSceneIndex > 0) {
+        isFilmPlaying = false;
+        showScene(currentSceneIndex - 1);
+      }
+    }
+
+    function videoGoNext() {
+      if (currentSceneIndex < filmScenes.length - 1) {
+        isFilmPlaying = false;
+        showScene(currentSceneIndex + 1);
+      }
+    }
+
+    async function videoPlayAll() {
+      isFilmPlaying = true;
+      videoPlayBtn.disabled = true;
+      videoPlayBtn.textContent = 'Lecture en cours...';
+
+      for (let i = currentSceneIndex; i < filmScenes.length; i++) {
+        if (!isFilmPlaying) break;
+        showScene(i);
+
+        // Play narration audio if available
+        const scene = filmScenes[i];
+        let narrationAudio = null;
+        if (scene.narrationAudioUrl) {
+          narrationAudio = new Audio(scene.narrationAudioUrl);
+        }
+
+        // Play video
+        videoPlayer.currentTime = 0;
+        const videoPlayPromise = videoPlayer.play();
+        if (videoPlayPromise) await videoPlayPromise.catch(() => {});
+
+        // Play narration alongside video
+        if (narrationAudio) {
+          narrationAudio.play().catch(() => {});
+        }
+
+        // Wait for video to end
+        await new Promise((resolve) => {
+          videoPlayer.onended = resolve;
+          videoPlayer.onerror = resolve;
+        });
+
+        // Stop narration if still playing
+        if (narrationAudio) {
+          narrationAudio.pause();
+          narrationAudio = null;
+        }
+      }
+
+      isFilmPlaying = false;
+      videoPlayBtn.disabled = false;
+      videoPlayBtn.textContent = 'Regarder le film';
+    }
+
+    async function generateFilm(context, language, age) {
+      statusEl.innerHTML = '<span class="spinner"></span> Ecriture du scenario (4 scenes)...';
+
+      // Step 1: Generate scenes + start Runway tasks
+      const genRes = await fetch('/api/generate-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ context, age, language }),
+      });
+
+      if (!genRes.ok) throw new Error('Erreur lors de la generation du scenario');
+      const { scenes } = await genRes.json();
+
+      // Step 2: Poll all video tasks until done
+      const totalScenes = scenes.length;
+      const results = scenes.map(s => ({ taskId: s.taskId, narration: s.narration, videoUrl: null, done: false }));
+
+      statusEl.innerHTML = `<span class="spinner"></span> Generation des videos (0/${totalScenes})...`;
+
+      for (let attempt = 0; attempt < 120; attempt++) {
+        await new Promise(r => setTimeout(r, 5000));
+
+        const pending = results.filter(r => !r.done);
+        if (pending.length === 0) break;
+
+        await Promise.all(pending.map(async (scene) => {
+          try {
+            const pollRes = await fetch('/api/video-status?taskId=' + scene.taskId);
+            const pollData = await pollRes.json();
+
+            if (pollData.status === 'SUCCESS') {
+              scene.videoUrl = pollData.videoUrl;
+              scene.done = true;
+            } else if (pollData.status === 'FAILED') {
+              scene.done = true; // mark done even if failed
+            }
+          } catch (e) { /* retry next round */ }
+        }));
+
+        const doneCount = results.filter(r => r.done).length;
+        const elapsed = (attempt + 1) * 5;
+        statusEl.innerHTML = `<span class="spinner"></span> Generation des videos (${doneCount}/${totalScenes})... ${elapsed}s`;
+
+        if (results.every(r => r.done)) break;
+      }
+
+      const successScenes = results.filter(r => r.videoUrl);
+      if (successScenes.length === 0) throw new Error('Aucune video n\'a pu etre generee');
+
+      // Step 3: Generate TTS narration for each scene
+      statusEl.innerHTML = '<span class="spinner"></span> Generation des narrations audio...';
+
+      const allNarrations = successScenes.map(s => s.narration).join('\n---\n');
+
+      // Generate narration audio for each scene individually
+      await Promise.all(successScenes.map(async (scene) => {
+        try {
+          const ttsRes = await fetch('/api/text-to-speech-all', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: scene.narration }),
+          });
+
+          if (ttsRes.ok) {
+            const { audioMap } = await ttsRes.json();
+            // Use first voice (Nova) for narration
+            const firstVoice = Object.keys(audioMap)[0];
+            if (firstVoice) {
+              const base64 = audioMap[firstVoice];
+              const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+              const blob = new Blob([bytes], { type: 'audio/mpeg' });
+              scene.narrationAudioUrl = URL.createObjectURL(blob);
+            }
+          }
+        } catch (e) {
+          console.warn('Narration TTS failed for scene:', e);
+        }
+      }));
+
+      // Step 4: Setup film player
+      filmScenes = successScenes.map(s => ({
+        videoUrl: s.videoUrl,
+        narration: s.narration,
+        narrationAudioUrl: s.narrationAudioUrl || null,
+      }));
+
+      currentSceneIndex = 0;
+      showScene(0);
+      videoSection.classList.add('visible');
+      statusEl.textContent = `Film pret ! ${filmScenes.length} scenes generees.`;
+    }
+
     // Show/hide duration based on mode
     const modeEl = document.getElementById('mode');
     const durationGroup = document.getElementById('duration-group');
     modeEl.addEventListener('change', () => {
-      durationGroup.style.display = modeEl.value === 'comptine' ? 'none' : 'block';
+      const mode = modeEl.value;
+      durationGroup.style.display = (mode === 'comptine' || mode === 'film') ? 'none' : 'block';
     });
   </script>
 </body>

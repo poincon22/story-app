@@ -3,6 +3,7 @@ dotenv.config({ override: true });
 
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
+import RunwayML from "@runwayml/sdk";
 import express from "express";
 
 const app = express();
@@ -232,6 +233,82 @@ app.post("/api/transcribe", express.raw({ type: "*/*", limit: "25mb" }), async (
   } catch (err) {
     console.error("Transcription error:", err.message);
     res.status(500).json({ error: "Erreur lors de la transcription" });
+  }
+});
+
+// Runway ML - Generate video (4 scenes)
+const runway = new RunwayML({ apiKey: process.env.RUNWAYML_API_SECRET });
+
+app.post("/api/generate-video", async (req, res) => {
+  const { context, age = 4, language = "fr" } = req.body;
+  if (!context) return res.status(400).json({ error: "Contexte manquant" });
+
+  try {
+    const prompt = language === "fr"
+      ? `Tu es un scenariste de films pour enfants de ${age} ans. A partir de ce contexte : "${context}", ecris une courte histoire en exactement 4 scenes.
+
+Pour chaque scene, fournis :
+- "narration": le texte raconte a voix haute (2-3 phrases simples)
+- "visual": une description visuelle detaillee EN ANGLAIS pour generer une video (decor, personnages, actions, style "colorful cartoon for children")
+
+Reponds UNIQUEMENT en JSON valide, sans commentaire :
+[{"narration":"...","visual":"..."},{"narration":"...","visual":"..."},{"narration":"...","visual":"..."},{"narration":"...","visual":"..."}]`
+      : `You are a film screenwriter for ${age}-year-old children. From this context: "${context}", write a short story in exactly 4 scenes.
+
+For each scene, provide:
+- "narration": the text to be read aloud (2-3 simple sentences)
+- "visual": a detailed visual description in English for video generation (setting, characters, actions, style "colorful cartoon for children")
+
+Respond ONLY with valid JSON, no commentary:
+[{"narration":"...","visual":"..."},{"narration":"...","visual":"..."},{"narration":"...","visual":"..."},{"narration":"...","visual":"..."}]`;
+
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 2000,
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    const text = message.content[0].text;
+    const scenes = JSON.parse(text);
+
+    const videoTasks = await Promise.all(
+      scenes.map(async (scene) => {
+        const task = await runway.imageToVideo.create({
+          model: "gen4_turbo",
+          promptText: scene.visual,
+          ratio: "1280:720",
+          duration: 5,
+        });
+        return { taskId: task.id, narration: scene.narration };
+      })
+    );
+
+    res.json({ scenes: videoTasks });
+  } catch (err) {
+    console.error("Video generation error:", err.message);
+    res.status(500).json({ error: "Erreur lors de la generation du film" });
+  }
+});
+
+// Runway ML - Poll video status
+app.get("/api/video-status", async (req, res) => {
+  const { taskId } = req.query;
+  if (!taskId) return res.status(400).json({ error: "taskId manquant" });
+
+  try {
+    const task = await runway.tasks.retrieve(taskId);
+
+    if (task.status === "SUCCEEDED") {
+      return res.json({ status: "SUCCESS", videoUrl: task.output[0] });
+    }
+    if (task.status === "FAILED") {
+      return res.json({ status: "FAILED" });
+    }
+
+    res.json({ status: "PENDING", progress: task.progress || 0 });
+  } catch (err) {
+    console.error("Video status error:", err.message);
+    res.status(500).json({ error: "Erreur lors de la verification" });
   }
 });
 
