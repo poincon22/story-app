@@ -230,6 +230,23 @@
       white-space: pre-wrap;
     }
 
+    .toggle-text-btn {
+      margin-top: 12px;
+      background: none;
+      color: #764ba2;
+      border: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      padding: 8px 0;
+      width: auto;
+      text-decoration: underline;
+    }
+
+    .toggle-text-btn:hover {
+      color: #667eea;
+    }
+
     .audio-section {
       margin-top: 20px;
       display: none;
@@ -357,15 +374,14 @@
     <p class="status" id="status"></p>
     <p class="error" id="error"></p>
 
-    <div class="story-box" id="story-box">
-      <div class="story-label">L'histoire</div>
-      <div class="story-text" id="story-text"></div>
-    </div>
-
     <div class="audio-section" id="audio-section">
       <div class="story-label">Ecouter l'histoire</div>
       <div class="voice-picker" id="voice-picker"></div>
       <audio id="audio-player" controls></audio>
+      <button class="toggle-text-btn" id="toggle-text-btn" onclick="toggleStoryText()">Voir le texte</button>
+      <div class="story-box" id="story-box">
+        <div class="story-text" id="story-text"></div>
+      </div>
     </div>
   </div>
 
@@ -553,6 +569,8 @@
 
           audioPlayer.src = audioUrl;
           voicePicker.innerHTML = '';
+          document.getElementById('toggle-text-btn').style.display = 'none';
+          storyBox.classList.remove('visible');
           audioSection.classList.add('visible');
           statusEl.textContent = 'Comptine prete !';
         } else {
@@ -573,7 +591,8 @@
           const { story } = await storyRes.json();
 
           storyTextEl.textContent = story;
-          storyBox.classList.add('visible');
+          storyBox.classList.remove('visible');
+          document.getElementById('toggle-text-btn').textContent = 'Voir le texte';
 
           const count = voiceNames.length || '...';
           statusEl.innerHTML = `<span class="spinner"></span> Generation des voix (${count} variantes)...`;
@@ -597,6 +616,7 @@
           activeVoice = voiceNames[0];
           audioPlayer.src = audioUrls[activeVoice];
           buildVoicePicker();
+          document.getElementById('toggle-text-btn').style.display = 'block';
           audioSection.classList.add('visible');
           statusEl.textContent = 'Histoire prete ! Cliquez sur une voix pour changer.';
         }
@@ -612,6 +632,17 @@
     fetch('/api/voices').then(r => r.json()).then(({ voices }) => {
       voiceNames = voices.map(v => v.name);
     });
+
+    function toggleStoryText() {
+      const toggleBtn = document.getElementById('toggle-text-btn');
+      if (storyBox.classList.contains('visible')) {
+        storyBox.classList.remove('visible');
+        toggleBtn.textContent = 'Voir le texte';
+      } else {
+        storyBox.classList.add('visible');
+        toggleBtn.textContent = 'Masquer le texte';
+      }
+    }
 
     contextEl.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) generate();
