@@ -1376,7 +1376,6 @@
 
         // Insert story and get back the ID
         const { data: inserted, error } = await sb.from('stories').insert(record).select('id').single();
-        alert('Insert result: error=' + (error ? error.message : 'none') + ' id=' + (inserted ? inserted.id : 'null'));
         if (error) throw error;
         const storyId = inserted.id;
 
@@ -1384,37 +1383,37 @@
         if (lastGeneratedMode === 'story' && Object.keys(audioUrls).length > 0) {
           saveBtn.textContent = 'Sauvegarde audio...';
           const audioPaths = {};
+          const voices = Object.entries(audioUrls);
+          alert('Starting upload of ' + voices.length + ' voices');
 
-          for (const [voice, blobUrl] of Object.entries(audioUrls)) {
-            const response = await fetch(blobUrl);
-            const blob = await response.blob();
-            const filePath = `${currentUser.id}/${storyId}/${voice}.mp3`;
-            console.log('Uploading', voice, filePath, 'size=', blob.size);
+          for (const [voice, blobUrl] of voices) {
+            try {
+              const response = await fetch(blobUrl);
+              const blob = await response.blob();
+              const filePath = `${currentUser.id}/${storyId}/${voice}.mp3`;
+              alert('Uploading ' + voice + ' size=' + blob.size);
 
-            const { error: uploadError } = await sb.storage
-              .from('story-audio')
-              .upload(filePath, blob, { contentType: 'audio/mpeg', upsert: true });
+              const { error: uploadError } = await sb.storage
+                .from('story-audio')
+                .upload(filePath, blob, { contentType: 'audio/mpeg', upsert: true });
 
-            if (uploadError) {
-              alert('Upload FAILED for ' + voice + ': ' + uploadError.message);
-            } else {
-              audioPaths[voice] = filePath;
-              console.log('Uploaded', voice, 'OK');
+              if (uploadError) {
+                alert('Upload FAILED ' + voice + ': ' + uploadError.message);
+              } else {
+                audioPaths[voice] = filePath;
+              }
+            } catch (uploadErr) {
+              alert('Upload CRASH ' + voice + ': ' + uploadErr.message);
             }
           }
 
-          console.log('audioPaths=', audioPaths);
-
           // Save audio paths to DB
           if (Object.keys(audioPaths).length > 0) {
-            const { error: updateError } = await sb.from('stories').update({ audio_paths: audioPaths }).eq('id', storyId);
-            if (updateError) console.error('Update audio_paths error:', updateError.message);
-            else console.log('audio_paths saved to DB');
+            await sb.from('stories').update({ audio_paths: audioPaths }).eq('id', storyId);
+            alert('Saved ' + Object.keys(audioPaths).length + ' audio paths to DB');
           } else {
-            alert('No audio uploaded - audioPaths is empty');
+            alert('No audio uploaded successfully');
           }
-        } else {
-          alert('Skipped audio upload: mode=' + lastGeneratedMode + ' audioUrls=' + Object.keys(audioUrls).length);
         }
 
         saveBtn.textContent = 'Sauvegardee !';
