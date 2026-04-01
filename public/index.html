@@ -1376,11 +1376,11 @@
 
         // Insert story and get back the ID
         const { data: inserted, error } = await sb.from('stories').insert(record).select('id').single();
+        alert('Insert result: error=' + (error ? error.message : 'none') + ' id=' + (inserted ? inserted.id : 'null'));
         if (error) throw error;
         const storyId = inserted.id;
 
         // Upload audio files to Supabase Storage
-        console.log('Save: mode=', lastGeneratedMode, 'audioUrls keys=', Object.keys(audioUrls));
         if (lastGeneratedMode === 'story' && Object.keys(audioUrls).length > 0) {
           saveBtn.textContent = 'Sauvegarde audio...';
           const audioPaths = {};
