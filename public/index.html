@@ -500,24 +500,30 @@
       const context = contextEl.value.trim();
       if (!context) return;
 
+      const mode = document.getElementById('mode').value;
+      const language = document.getElementById('language').value;
+
       btn.disabled = true;
       errorEl.textContent = '';
       audioUrls = {};
       storyBox.classList.remove('visible');
       audioSection.classList.remove('visible');
-      statusEl.innerHTML = '<span class="spinner"></span> Creation de l\'histoire...';
+
+      const label = mode === 'comptine' ? 'comptine' : 'histoire';
+      statusEl.innerHTML = `<span class="spinner"></span> Creation de la ${label}...`;
 
       try {
+        // Step 1: Generate text (story or lyrics)
         const storyRes = await fetch('/api/generate-story', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-          context,
-          mode: document.getElementById('mode').value,
-          duration: parseInt(document.getElementById('duration').value),
-          age: parseInt(document.getElementById('age').value),
-          language: document.getElementById('language').value,
-        }),
+            context,
+            mode,
+            duration: parseInt(document.getElementById('duration').value),
+            age: parseInt(document.getElementById('age').value),
+            language,
+          }),
         });
 
         if (!storyRes.ok) throw new Error('Erreur lors de la generation');
@@ -526,30 +532,50 @@
         storyTextEl.textContent = story;
         storyBox.classList.add('visible');
 
-        const count = voiceNames.length || '...';
-        statusEl.innerHTML = `<span class="spinner"></span> Generation des voix (${count} variantes)...`;
+        if (mode === 'comptine') {
+          // Step 2a: Comptine → Suno (chanson chantee)
+          statusEl.innerHTML = '<span class="spinner"></span> Composition de la chanson (30-60 sec)...';
 
-        const audioRes = await fetch('/api/text-to-speech-all', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: story }),
-        });
+          const songRes = await fetch('/api/generate-song', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: story, language }),
+          });
 
-        if (!audioRes.ok) throw new Error('Erreur lors de la synthese vocale');
+          if (!songRes.ok) throw new Error('Erreur lors de la generation de la chanson');
+          const { audioUrl } = await songRes.json();
 
-        const { audioMap } = await audioRes.json();
-        voiceNames = Object.keys(audioMap);
-        for (const [voice, base64] of Object.entries(audioMap)) {
-          const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-          const blob = new Blob([bytes], { type: 'audio/mpeg' });
-          audioUrls[voice] = URL.createObjectURL(blob);
+          audioPlayer.src = audioUrl;
+          voicePicker.innerHTML = '';
+          audioSection.classList.add('visible');
+          statusEl.textContent = 'Comptine prete !';
+        } else {
+          // Step 2b: Histoire → OpenAI TTS (toutes les voix)
+          const count = voiceNames.length || '...';
+          statusEl.innerHTML = `<span class="spinner"></span> Generation des voix (${count} variantes)...`;
+
+          const audioRes = await fetch('/api/text-to-speech-all', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: story }),
+          });
+
+          if (!audioRes.ok) throw new Error('Erreur lors de la synthese vocale');
+
+          const { audioMap } = await audioRes.json();
+          voiceNames = Object.keys(audioMap);
+          for (const [voice, base64] of Object.entries(audioMap)) {
+            const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+            const blob = new Blob([bytes], { type: 'audio/mpeg' });
+            audioUrls[voice] = URL.createObjectURL(blob);
+          }
+
+          activeVoice = voiceNames[0];
+          audioPlayer.src = audioUrls[activeVoice];
+          buildVoicePicker();
+          audioSection.classList.add('visible');
+          statusEl.textContent = 'Histoire prete ! Cliquez sur une voix pour changer.';
         }
-
-        activeVoice = voiceNames[0];
-        audioPlayer.src = audioUrls[activeVoice];
-        buildVoicePicker();
-        audioSection.classList.add('visible');
-        statusEl.textContent = 'Histoire prete ! Cliquez sur une voix pour changer.';
       } catch (err) {
         errorEl.textContent = err.message;
         statusEl.textContent = '';

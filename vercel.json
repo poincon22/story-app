@@ -5,6 +5,9 @@
     },
     "api/text-to-speech-all.js": {
       "maxDuration": 60
+    },
+    "api/generate-song.js": {
+      "maxDuration": 120
     }
   }
 }
