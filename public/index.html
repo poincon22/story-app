@@ -316,6 +316,27 @@
     </div>
 
     <div class="input-group">
+      <label for="age">Age de l'enfant</label>
+      <select id="age">
+        <option value="1">1 an</option>
+        <option value="2">2 ans</option>
+        <option value="3">3 ans</option>
+        <option value="4" selected>4 ans</option>
+        <option value="5">5 ans</option>
+        <option value="6">6 ans</option>
+        <option value="7">7 ans</option>
+        <option value="8">8 ans</option>
+        <option value="9">9 ans</option>
+        <option value="10">10 ans</option>
+        <option value="11">11 ans</option>
+        <option value="12">12 ans</option>
+        <option value="13">13 ans</option>
+        <option value="14">14 ans</option>
+        <option value="15">15 ans</option>
+      </select>
+    </div>
+
+    <div class="input-group">
       <label for="language">Langue</label>
       <select id="language">
         <option value="fr" selected>Francais</option>
@@ -485,6 +506,7 @@
           body: JSON.stringify({
           context,
           duration: parseInt(document.getElementById('duration').value),
+          age: parseInt(document.getElementById('age').value),
           language: document.getElementById('language').value,
         }),
         });
