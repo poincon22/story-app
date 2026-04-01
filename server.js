@@ -3,9 +3,55 @@ dotenv.config({ override: true });
 
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
+import Stripe from "stripe";
+import { createClient } from "@supabase/supabase-js";
 import express from "express";
 
 const app = express();
+
+// Stripe webhook needs raw body - must be BEFORE json parser
+app.post("/api/webhook-stripe", express.raw({ type: "application/json" }), async (req, res) => {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const sig = req.headers["stripe-signature"];
+
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    console.error("Webhook sig failed:", err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  async function updateUserPlan(customerId, plan) {
+    const { data } = await supabaseAdmin.from("profiles").select("id").eq("stripe_customer_id", customerId).single();
+    if (data) await supabaseAdmin.from("profiles").update({ plan }).eq("id", data.id);
+  }
+
+  try {
+    switch (event.type) {
+      case "checkout.session.completed": {
+        const session = event.data.object;
+        if (session.mode === "subscription") await updateUserPlan(session.customer, "premium");
+        break;
+      }
+      case "customer.subscription.updated": {
+        const sub = event.data.object;
+        if (sub.status === "active") await updateUserPlan(sub.customer, "premium");
+        break;
+      }
+      case "customer.subscription.deleted": {
+        const sub = event.data.object;
+        await updateUserPlan(sub.customer, "free");
+        break;
+      }
+    }
+  } catch (err) {
+    console.error("Webhook error:", err.message);
+  }
+  res.json({ received: true });
+});
+
 app.use(express.json({ limit: "50mb" }));
 app.use(express.static("public"));
 
@@ -21,11 +67,73 @@ const VOICES = [
   { id: "onyx", name: "Onyx" },
 ];
 
+// Stripe checkout
+app.post("/api/create-checkout", async (req, res) => {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const { priceId, userId, userEmail } = req.body;
+
+  if (!priceId || !userId || !userEmail) return res.status(400).json({ error: "Missing params" });
+
+  try {
+    const { data: profile } = await supabaseAdmin.from("profiles").select("stripe_customer_id").eq("id", userId).single();
+    let customerId = profile?.stripe_customer_id;
+
+    if (!customerId) {
+      const customer = await stripe.customers.create({ email: userEmail, metadata: { supabase_user_id: userId } });
+      customerId = customer.id;
+      await supabaseAdmin.from("profiles").update({ stripe_customer_id: customerId }).eq("id", userId);
+    }
+
+    const origin = req.headers.origin || "http://localhost:3000";
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      mode: "subscription",
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${origin}?checkout=success`,
+      cancel_url: `${origin}?checkout=cancel`,
+      metadata: { supabase_user_id: userId },
+    });
+
+    res.json({ url: session.url });
+  } catch (err) {
+    console.error("Checkout error:", err.message);
+    res.status(500).json({ error: "Erreur checkout" });
+  }
+});
+
+// Stripe customer portal
+app.post("/api/manage-subscription", async (req, res) => {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const { userId } = req.body;
+
+  if (!userId) return res.status(400).json({ error: "Missing userId" });
+
+  try {
+    const { data: profile } = await supabaseAdmin.from("profiles").select("stripe_customer_id").eq("id", userId).single();
+    if (!profile?.stripe_customer_id) return res.status(400).json({ error: "No subscription" });
+
+    const origin = req.headers.origin || "http://localhost:3000";
+    const portalSession = await stripe.billingPortal.sessions.create({
+      customer: profile.stripe_customer_id,
+      return_url: origin,
+    });
+
+    res.json({ url: portalSession.url });
+  } catch (err) {
+    console.error("Portal error:", err.message);
+    res.status(500).json({ error: "Erreur portail" });
+  }
+});
+
 // Public config (Supabase keys are safe to expose client-side)
 app.get("/api/config", (req, res) => {
   res.json({
     supabaseUrl: process.env.SUPABASE_URL || "",
     supabaseAnonKey: process.env.SUPABASE_ANON_KEY || "",
+    stripePriceMonthly: process.env.STRIPE_PRICE_MONTHLY || "",
+    stripePriceYearly: process.env.STRIPE_PRICE_YEARLY || "",
   });
 });
 

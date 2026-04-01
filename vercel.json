@@ -11,6 +11,15 @@
     },
     "api/generate-song.js": {
       "maxDuration": 120
+    },
+    "api/create-checkout.js": {
+      "maxDuration": 15
+    },
+    "api/manage-subscription.js": {
+      "maxDuration": 15
+    },
+    "api/webhook-stripe.js": {
+      "maxDuration": 15
     }
   }
 }

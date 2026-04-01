@@ -12,6 +12,7 @@
     "@elevenlabs/elevenlabs-js": "^2.41.0",
     "dotenv": "^16.4.0",
     "express": "^4.21.0",
-    "openai": "^4.77.0"
+    "openai": "^4.77.0",
+    "stripe": "^21.0.1"
   }
 }
