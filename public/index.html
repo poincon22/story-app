@@ -1604,11 +1604,11 @@
     }
 
     async function playFromLibrary(id) {
-      const { data, error } = await sb.from('stories').select('id, title, context, story_text, mode, language, age, duration, audio_url, audio_data').eq('id', id).single();
-      if (error || !data) {
-        console.error('playFromLibrary error:', error);
-        return;
-      }
+      alert('playFromLibrary: ' + id);
+      try {
+        const { data, error } = await sb.from('stories').select('id, title, context, story_text, mode, language, age, duration, audio_url, audio_data').eq('id', id).single();
+        alert('Query done: error=' + (error ? error.message : 'none') + ' hasData=' + !!data + ' hasAudioData=' + !!(data && data.audio_data));
+        if (error || !data) return;
 
       const player = document.getElementById('library-player');
       const audioEl = document.getElementById('library-audio-player');
@@ -1718,6 +1718,9 @@
       }
 
       player.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } catch (e) {
+        alert('playFromLibrary CRASH: ' + e.message);
+      }
     }
 
     async function deleteFromLibrary(id) {
